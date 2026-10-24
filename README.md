@@ -66,7 +66,8 @@ strokes.
 | | Clear all contours | Wipes the canvas |
 
 The control panel, canvas sizing and settings export come from Pixel Point's Toolcraft app
-template, which this project was generated from.
+template, which this project was generated from. The drawing surface is sized to the browser
+window on load and on every resize, rather than the template's fixed 1920 × 1080 output.
 
 ## Run it
 
@@ -78,8 +79,8 @@ npm run dev      # Vite dev server on a free port
 npm run build    # type-check, then a static site in dist/
 ```
 
-The site was hosted on Cloudflare Pages at `contour.parthchandak.info`; that hostname no longer
-resolves, so for now it runs locally only.
+There is no hosted copy: the old Cloudflare Pages site has been taken down, so for now it runs
+locally only.
 
 <details>
 <summary><b>Project layout and licence</b></summary>
@@ -93,8 +94,9 @@ brief.md                   The original creative brief: concept, palette, encodi
 e2e/                       Playwright browser tests from the template
 ```
 
-Toolcraft code is covered by the Toolcraft Designer License in `LICENSE.md` (see `NOTICE.md`),
-not an open-source licence.
+This repository has no open-source licence. The Toolcraft code it contains is covered by the
+Toolcraft Designer License in `LICENSE.md` (see `NOTICE.md`), which restricts redistribution, and
+no separate licence is granted for the rest of the project.
 
 </details>
 

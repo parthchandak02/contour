@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useToolcraftValue } from "@/toolcraft/runtime/react";
+import { useToolcraft, useToolcraftValue } from "@/toolcraft/runtime/react";
 
 // ─── Palette definitions ───
 const PALETTES: Record<string, Record<string, string>> = {
@@ -166,6 +166,35 @@ export function ContourCanvas({ clearRef }: ContourCanvasProps): React.JSX.Eleme
     };
   }, []);
 
+  // ─── Fit the output to the viewport ───
+  // The Toolcraft template defaults to a fixed 1920x1080 output, which overflows smaller
+  // screens and pushes the overlays off-canvas. Size the output to the window instead.
+  const { dispatch } = useToolcraft();
+  React.useEffect(() => {
+    let frame = 0;
+    const fit = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        dispatch({
+          type: "canvas.setSize",
+          size: { width: window.innerWidth, height: window.innerHeight, unit: "px" },
+        });
+        // The template's workspace has a 1024px minimum width; on narrower screens shift the
+        // output so it lines up with the visible window instead of the workspace centre.
+        const workspace = canvasRef.current?.closest<HTMLElement>('[class*="group/canvas"]');
+        const overflow = workspace ? workspace.clientWidth - window.innerWidth : 0;
+        dispatch({ type: "canvas.setOffset", offset: { x: -Math.max(0, overflow) / 2, y: 0 } });
+        dispatch({ type: "canvas.zoomReset" });
+      });
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", fit);
+    };
+  }, [dispatch]);
+
   // ─── Canvas resize ───
   React.useEffect(() => {
     const canvas = canvasRef.current;
@@ -186,8 +215,10 @@ export function ContourCanvas({ clearRef }: ContourCanvasProps): React.JSX.Eleme
     };
 
     resize();
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    // The parent changes size when the output is fitted to the window, not only on window resize.
+    const observer = new ResizeObserver(resize);
+    if (canvas.parentElement) observer.observe(canvas.parentElement);
+    return () => observer.disconnect();
   }, []);
 
   // ─── Get canvas coordinates from pointer event ───
