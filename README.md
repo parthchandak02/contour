@@ -11,17 +11,17 @@
 ![Data](https://img.shields.io/badge/data-AWS%20Terrain%20Tiles-8a5a36?style=flat-square)
 ![Canvas 2D](https://img.shields.io/badge/Canvas-2D-111111?style=flat-square)
 ![Toolcraft](https://img.shields.io/badge/Toolcraft-0.0.26-111111?style=flat-square)
-![Live](https://img.shields.io/badge/live-contour--topo.pages.dev-b7c8a0?style=flat-square)
+![Live](https://img.shields.io/badge/live-contour.parthchandak.info-b7c8a0?style=flat-square)
 
 </h6>
 
-<a href="https://contour-topo.pages.dev"><b>Live app</b></a> ·
+<a href="https://contour.parthchandak.info"><b>Live app</b></a> ·
 <a href="#how-it-works"><b>How it works</b></a> ·
 <a href="#run-it"><b>Run it</b></a>
 
 <br><br>
 
-<a href="https://contour-topo.pages.dev"><img src="docs/assets/readme/hero.jpg" width="100%" alt="A paper-coloured poster of the Matterhorn: on the left the title in italic serif, region and coordinates, rows for highest and lowest ground in view, relief, contour interval and area, an elevation legend of six swatches, a scale bar and a north arrow; on the right a contour map with green valleys rising through tan and brown to a pale summit, shaded from the north-west, with the summit marked at 4,352 m"></a>
+<a href="https://contour.parthchandak.info"><img src="docs/assets/readme/hero.jpg" width="100%" alt="A paper-coloured poster of the Matterhorn: on the left the title in italic serif, region and coordinates, rows for highest and lowest ground in view, relief, contour interval and area, an elevation legend of six swatches, a scale bar and a north arrow; on the right a contour map with green valleys rising through tan and brown to a pale summit, shaded from the north-west, with the summit marked at 4,352 m"></a>
 
 <sub>The default map: the Matterhorn, 50 m contours, tinted.</sub>
 
