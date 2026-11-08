@@ -1,4 +1,4 @@
-import { applySliderValueLabelUnit } from "../slider/slider-value";
+import { formatSliderValueWithUnit } from "../slider/slider-value";
 
 const signedNumberPattern = "[-−]?\\d+(?:[.,]\\d+)?";
 const rangePairPattern = new RegExp(
@@ -8,10 +8,11 @@ const rangePairPattern = new RegExp(
 
 export function formatRangeSliderValue(
   value: readonly number[],
+  step: number,
   unit?: string,
 ): string {
   const formatValue = (item: number): string =>
-    applySliderValueLabelUnit(String(Math.round(item)), unit);
+    formatSliderValueWithUnit(item, step, unit);
 
   if (value.length >= 2 && value[0] === value[1]) {
     return formatValue(value[0] ?? 0);

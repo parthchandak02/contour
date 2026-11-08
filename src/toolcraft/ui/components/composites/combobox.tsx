@@ -1,18 +1,26 @@
-import * as React from "react";
 import { Combobox as ComboboxPrimitive } from "@base-ui/react";
+import { XIcon, CheckIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { cva } from "class-variance-authority";
+import * as React from "react";
+
 import { outlineControlSurfaceClassName } from "../../lib/control-outline";
 import { cn } from "../../lib/utils";
-import { Button } from "../primitives";
-import { PrimitiveArrowIcon } from "../primitives";
 import {
+  Button,
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
+  PrimitiveArrowIcon,
+  ScrollFade,
 } from "../primitives";
-import { ScrollFade } from "../primitives";
-import { XIcon, CheckIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
-const Combobox = ComboboxPrimitive.Root;
+import { ComboboxList } from "./combobox-list";
+
+function Combobox<
+  Value,
+  Multiple extends boolean | undefined = false,
+>(props: ComboboxPrimitive.Root.Props<Value, Multiple>) {
+  return <ComboboxPrimitive.Root {...props} />;
+}
 type ComboboxFieldSize = "sm" | "default" | "lg" | "xl";
 const comboboxHoverBorderClassName =
   "[&:not(:focus-within):hover]:!border-[color:color-mix(in_oklab,var(--border)_20%,transparent)]";
@@ -216,39 +224,6 @@ function ComboboxContent({
         />
       </ComboboxPrimitive.Positioner>
     </ComboboxPrimitive.Portal>
-  );
-}
-
-function ComboboxList({ className, ...props }: ComboboxPrimitive.List.Props) {
-  return (
-    <ComboboxPrimitive.List
-      data-slot="combobox-list"
-      render={(listProps) => {
-        const {
-          children,
-          className: renderedClassName,
-          ...renderedListProps
-        } = listProps as React.ComponentProps<"div">;
-
-        return (
-          <div {...renderedListProps} className="min-h-0 w-full">
-            <ScrollFade
-              className={cn(
-                "no-scrollbar max-h-[min(calc(--spacing(72)---spacing(9)),calc(var(--available-height)---spacing(9)))] w-full scroll-py-1 overscroll-contain",
-                renderedClassName,
-                className,
-              )}
-              containerClassName="min-h-0 w-full"
-              preset="compact"
-              side="bottom"
-            >
-              {children}
-            </ScrollFade>
-          </div>
-        );
-      }}
-      {...props}
-    />
   );
 }
 

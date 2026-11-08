@@ -1,12 +1,15 @@
-import * as React from "react";
+import { sanitizeComposedHostProps, type SafeComposedHostElementProps } from "../primitives/sanitize-composed-host-props";
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
+import * as React from "react";
 
-import { Input } from "../primitives";
-import { Separator } from "../primitives";
+import {
+  Input,
+  Separator,
+} from "../primitives";
 import { cn } from "../../lib/utils";
 
-function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
+function SidebarInset({ className, ...props }: SafeComposedHostElementProps<"main">) {
   return (
     <main
       data-slot="sidebar-inset"
@@ -14,7 +17,7 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
         "relative flex w-full flex-1 flex-col bg-[color:var(--background)] md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
@@ -33,24 +36,24 @@ function SidebarInput({ className, ...props }: React.ComponentProps<typeof Input
   );
 }
 
-function SidebarHeader({ className, ...props }: React.ComponentProps<"div">) {
+function SidebarHeader({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="sidebar-header"
       data-sidebar="header"
       className={cn("flex flex-col gap-2 p-2", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function SidebarFooter({ className, ...props }: React.ComponentProps<"div">) {
+function SidebarFooter({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="sidebar-footer"
       data-sidebar="footer"
       className={cn("flex flex-col gap-2 p-2", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
@@ -69,7 +72,7 @@ function SidebarSeparator({ className, ...props }: React.ComponentProps<typeof S
   );
 }
 
-function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
+function SidebarContent({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="sidebar-content"
@@ -78,18 +81,18 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
         "no-scrollbar flex min-h-0 flex-1 flex-col gap-0 overflow-auto group-data-[collapsible=icon]:overflow-hidden",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function SidebarGroup({ className, ...props }: React.ComponentProps<"div">) {
+function SidebarGroup({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="sidebar-group"
       data-sidebar="group"
       className={cn("relative flex w-full min-w-0 flex-col px-2 py-1", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
@@ -142,40 +145,40 @@ function SidebarGroupAction({
   });
 }
 
-function SidebarGroupContent({ className, ...props }: React.ComponentProps<"div">) {
+function SidebarGroupContent({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="sidebar-group-content"
       data-sidebar="group-content"
       className={cn("w-full text-xs", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function SidebarMenu({ className, ...props }: React.ComponentProps<"ul">) {
+function SidebarMenu({ className, ...props }: SafeComposedHostElementProps<"ul">) {
   return (
     <ul
       data-slot="sidebar-menu"
       data-sidebar="menu"
       className={cn("flex w-full min-w-0 flex-col gap-px", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
+function SidebarMenuItem({ className, ...props }: SafeComposedHostElementProps<"li">) {
   return (
     <li
       data-slot="sidebar-menu-item"
       data-sidebar="menu-item"
       className={cn("group/menu-item relative", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function SidebarMenuBadge({ className, ...props }: React.ComponentProps<"div">) {
+function SidebarMenuBadge({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="sidebar-menu-badge"
@@ -184,7 +187,7 @@ function SidebarMenuBadge({ className, ...props }: React.ComponentProps<"div">) 
         "pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-[calc(var(--radius-sm)-2px)] px-1 text-xs font-medium text-[color:var(--sidebar-foreground)] tabular-nums select-none group-data-[collapsible=icon]:hidden peer-hover/menu-button:text-[color:var(--sidebar-accent-foreground)] peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 peer-data-active/menu-button:text-[color:var(--sidebar-accent-foreground)]",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
@@ -192,9 +195,9 @@ function SidebarMenuBadge({ className, ...props }: React.ComponentProps<"div">) 
 function SidebarMenuPlaceholder({
   className,
   ...props
-}: React.ComponentProps<"div">): React.JSX.Element {
+}: SafeComposedHostElementProps<"div">): React.JSX.Element {
   return (
-    <div className={cn("animate-pulse rounded-md bg-[color:var(--muted)]", className)} {...props} />
+    <div className={cn("animate-pulse rounded-md bg-[color:var(--muted)]", className)} {...sanitizeComposedHostProps(props)} />
   );
 }
 
@@ -202,7 +205,7 @@ function SidebarMenuSkeleton({
   className,
   showIcon = false,
   ...props
-}: React.ComponentProps<"div"> & {
+}: SafeComposedHostElementProps<"div"> & {
   showIcon?: boolean;
 }) {
   const [width] = React.useState(() => {
@@ -214,7 +217,7 @@ function SidebarMenuSkeleton({
       data-slot="sidebar-menu-skeleton"
       data-sidebar="menu-skeleton"
       className={cn("flex h-8 items-center gap-2 rounded-md px-2", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     >
       {showIcon ? (
         <SidebarMenuPlaceholder className="size-4 rounded-md" data-sidebar="menu-skeleton-icon" />
@@ -232,7 +235,7 @@ function SidebarMenuSkeleton({
   );
 }
 
-function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
+function SidebarMenuSub({ className, ...props }: SafeComposedHostElementProps<"ul">) {
   return (
     <ul
       data-slot="sidebar-menu-sub"
@@ -241,18 +244,18 @@ function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
         "mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-[color:color-mix(in_oklab,var(--sidebar-border)_20%,transparent)] px-2.5 py-0.5 group-data-[collapsible=icon]:hidden",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function SidebarMenuSubItem({ className, ...props }: React.ComponentProps<"li">) {
+function SidebarMenuSubItem({ className, ...props }: SafeComposedHostElementProps<"li">) {
   return (
     <li
       data-slot="sidebar-menu-sub-item"
       data-sidebar="menu-sub-item"
       className={cn("group/menu-sub-item relative", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }

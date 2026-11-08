@@ -3,6 +3,10 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
+import {
+  observeBrowserResize,
+  subscribeBrowserElementEvent,
+} from "./browser-transport";
 import type {
   ScrollFadeIntensity,
   ScrollFadePreset,
@@ -324,22 +328,21 @@ function useScrollFadeVisibility({
     };
 
     updateFadeVisibility();
-    viewportElement.addEventListener("scroll", handleScroll);
+    const unsubscribeScroll = subscribeBrowserElementEvent(
+      viewportElement,
+      "scroll",
+      handleScroll,
+    );
 
-    let resizeObserver: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined") {
-      resizeObserver = new ResizeObserver(updateFadeVisibility);
-      resizeObserver.observe(viewportElement);
-
-      const contentNode = viewportElement.firstElementChild;
-      if (contentNode) {
-        resizeObserver.observe(contentNode);
-      }
-    }
+    const contentNode = viewportElement.firstElementChild;
+    const unsubscribeResize = observeBrowserResize(
+      contentNode ? [viewportElement, contentNode] : [viewportElement],
+      updateFadeVisibility,
+    );
 
     return () => {
-      viewportElement.removeEventListener("scroll", handleScroll);
-      resizeObserver?.disconnect();
+      unsubscribeScroll();
+      unsubscribeResize();
     };
   }, [
     dependencyVersion,

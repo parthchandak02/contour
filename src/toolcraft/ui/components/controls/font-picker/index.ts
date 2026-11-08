@@ -6,11 +6,14 @@ export {
 } from "./font-picker-control";
 export type {
   FontPickerControlProps,
+} from "./font-picker-control";
+export type {
+  FontPickerInputValue,
   FontPickerLetterSpacingPreset,
   FontPickerLineHeightPreset,
   FontPickerTextCasePreset,
   FontPickerValue,
-} from "./font-picker-control";
+} from "./font-picker-value";
 export {
   getDefaultFontPickerFontId,
   getFontPickerCatalog,

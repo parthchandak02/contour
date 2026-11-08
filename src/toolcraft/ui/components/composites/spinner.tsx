@@ -1,10 +1,14 @@
-import { AnimatedLoader, type LoaderSize } from "../primitives";
+import { sanitizeComposedHostProps, type SafeComposedHostElementProps } from "../primitives/sanitize-composed-host-props";
+import {
+  AnimatedLoader,
+  type LoaderSize,
+} from "../primitives";
 import { cn } from "../../lib/utils";
 
 const DEFAULT_SPINNER_LOADER_WIDTH = 16;
 export const DEFAULT_SPINNER_LOADER_HEIGHT = 4;
 
-type SpinnerProps = React.ComponentProps<"span"> & {
+type SpinnerProps = SafeComposedHostElementProps<"span"> & {
   height?: LoaderSize;
   insetX?: number;
   indicatorClassName?: string;
@@ -27,7 +31,7 @@ function Spinner({
       className={cn("inline-flex shrink-0 items-center justify-center", className)}
       data-slot="spinner"
       role={ariaHidden ? undefined : "status"}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     >
       <AnimatedLoader
         className="shrink-0"

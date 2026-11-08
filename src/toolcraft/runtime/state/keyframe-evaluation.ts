@@ -1,10 +1,63 @@
+import { resolveToolcraftCollectionItemIndex } from "../schema/collection-identity";
 import type {
-  ToolcraftState,
+  ReadonlyToolcraftState,
+  ToolcraftReadonly,
+} from "./readonly-state";
+import type {
   ToolcraftTimelineBezierControlPoints,
   ToolcraftTimelineKeyframe,
   ToolcraftTimelineKeyframeEasing,
   ToolcraftTimelineKeyframeGroup,
 } from "./types";
+import {
+  getToolcraftCollectionActionsControls,
+  isToolcraftCollectionFieldKeyframeable,
+} from "../schema/collection-actions";
+import type { ToolcraftCollectionItemControlSchema } from "../schema/types";
+import {
+  decodeToolcraftCollectionItemControlAddress,
+  type ToolcraftCollectionItemControlAddress,
+} from "./collection-control-address";
+import { decodeToolcraftBuiltInControlValue } from "./control-value-codecs";
+
+export {
+  decodeToolcraftCollectionItemControlAddress,
+  getToolcraftCollectionItemControlAddress,
+  toolcraftCollectionItemControlAddressPrefix,
+} from "./collection-control-address";
+
+function getLiveCollectionField(
+  state: ReadonlyToolcraftState,
+  address: ToolcraftCollectionItemControlAddress,
+): ToolcraftCollectionItemControlSchema | undefined {
+  const control = getToolcraftCollectionActionsControls(
+    state.schema.panels.controls,
+  ).get(address.collectionTarget);
+  const field = control?.itemControls?.[address.fieldId];
+  const items = state.values[address.collectionTarget];
+
+  return control &&
+    field &&
+    isToolcraftCollectionFieldKeyframeable(field) &&
+    Array.isArray(items) &&
+    resolveToolcraftCollectionItemIndex(control, items, { itemId: address.itemId, itemIndex: address.index }) >= 0
+    ? field
+    : undefined;
+}
+
+function resolveCollectionAddressIndex(state: ReadonlyToolcraftState, address: ToolcraftCollectionItemControlAddress, items: readonly unknown[]): number {
+  const control = getToolcraftCollectionActionsControls(state.schema.panels.controls).get(address.collectionTarget);
+  return control ? resolveToolcraftCollectionItemIndex(control, items, { itemId: address.itemId, itemIndex: address.index }) : -1;
+}
+
+function decodeEvaluatedCollectionField(
+  field: ToolcraftCollectionItemControlSchema,
+  candidate: unknown,
+  fallback: unknown,
+): unknown {
+  const decoded = decodeToolcraftBuiltInControlValue(field, candidate);
+  return decoded?.accepted ? decoded.value : fallback;
+}
 
 const defaultTimelineKeyframeEasing: ToolcraftTimelineKeyframeEasing = {
   controlPoints: [0.65, 0, 0.35, 1],
@@ -35,7 +88,7 @@ function getBezierPoint(
 
 function getBezierYForX(
   progress: number,
-  [x1, y1, x2, y2]: ToolcraftTimelineBezierControlPoints,
+  [x1, y1, x2, y2]: ToolcraftReadonly<ToolcraftTimelineBezierControlPoints>,
 ): number {
   let min = 0;
   let max = 1;
@@ -56,7 +109,7 @@ function getBezierYForX(
 
 function easeProgress(
   progress: number,
-  easing: ToolcraftTimelineKeyframeEasing | undefined,
+  easing: ToolcraftReadonly<ToolcraftTimelineKeyframeEasing> | undefined,
 ): number {
   const clampedProgress = clampUnit(progress);
   const resolvedEasing = easing ?? defaultTimelineKeyframeEasing;
@@ -87,7 +140,11 @@ function interpolateToolcraftValue(
     return fromValue + (toValue - fromValue) * progress;
   }
 
-  if (Array.isArray(fromValue) && Array.isArray(toValue) && fromValue.length === toValue.length) {
+  if (
+    Array.isArray(fromValue) &&
+    Array.isArray(toValue) &&
+    fromValue.length === toValue.length
+  ) {
     return fromValue.map((item, index) =>
       interpolateToolcraftValue(item, toValue[index], progress),
     );
@@ -99,7 +156,9 @@ function interpolateToolcraftValue(
 
     if (
       fromKeys.length === toKeys.length &&
-      fromKeys.every((key) => Object.prototype.hasOwnProperty.call(toValue, key))
+      fromKeys.every((key) =>
+        Object.prototype.hasOwnProperty.call(toValue, key),
+      )
     ) {
       return Object.fromEntries(
         fromKeys.map((key) => [
@@ -113,12 +172,14 @@ function interpolateToolcraftValue(
   return progress >= 1 ? toValue : fromValue;
 }
 
-function getKeyframeRuntimeValue(keyframe: ToolcraftTimelineKeyframe): unknown {
+function getKeyframeRuntimeValue(
+  keyframe: ToolcraftReadonly<ToolcraftTimelineKeyframe>,
+): unknown {
   return "value" in keyframe ? keyframe.value : undefined;
 }
 
 function getEvaluatedTimelineGroupValue(
-  group: ToolcraftTimelineKeyframeGroup,
+  group: ToolcraftReadonly<ToolcraftTimelineKeyframeGroup>,
   timeSeconds: number,
   fallbackValue: unknown,
 ): unknown {
@@ -153,12 +214,18 @@ function getEvaluatedTimelineGroupValue(
       continue;
     }
 
-    if (timeSeconds < fromKeyframe.timeSeconds || timeSeconds > toKeyframe.timeSeconds) {
+    if (
+      timeSeconds < fromKeyframe.timeSeconds ||
+      timeSeconds > toKeyframe.timeSeconds
+    ) {
       continue;
     }
 
     const durationSeconds = toKeyframe.timeSeconds - fromKeyframe.timeSeconds;
-    const progress = durationSeconds <= 0 ? 1 : (timeSeconds - fromKeyframe.timeSeconds) / durationSeconds;
+    const progress =
+      durationSeconds <= 0
+        ? 1
+        : (timeSeconds - fromKeyframe.timeSeconds) / durationSeconds;
     const easedProgress = easeProgress(progress, fromKeyframe.easing);
 
     return interpolateToolcraftValue(
@@ -172,30 +239,89 @@ function getEvaluatedTimelineGroupValue(
 }
 
 export function evaluateToolcraftTimelineValue(
-  state: ToolcraftState,
+  state: ReadonlyToolcraftState,
   target: string,
   timeSeconds = state.timeline.currentTimeSeconds,
 ): unknown {
-  const group = state.timeline.keyframeGroups.find((item) => item.controlId === target);
+  const group = state.timeline.keyframeGroups.find(
+    (item) => item.controlId === target,
+  );
 
-  if (!group) {
-    return state.values[target];
+  const nestedAddress = decodeToolcraftCollectionItemControlAddress(target);
+  if (nestedAddress) {
+    const field = getLiveCollectionField(state, nestedAddress);
+    if (!field) return undefined;
+    const parent = state.values[nestedAddress.collectionTarget];
+    const fallback = Array.isArray(parent)
+      ? (parent[resolveCollectionAddressIndex(state, nestedAddress, parent)] as Record<string, unknown> | undefined)?.[
+          nestedAddress.fieldId
+        ]
+      : undefined;
+    return decodeEvaluatedCollectionField(
+      field,
+      group
+        ? getEvaluatedTimelineGroupValue(group, timeSeconds, fallback)
+        : fallback,
+      fallback,
+    );
   }
 
-  return getEvaluatedTimelineGroupValue(group, timeSeconds, state.values[target]);
+  let value = group
+    ? getEvaluatedTimelineGroupValue(group, timeSeconds, state.values[target])
+    : state.values[target];
+  const nestedGroups = state.timeline.keyframeGroups.flatMap((item) => {
+    const address = decodeToolcraftCollectionItemControlAddress(item.controlId);
+    if (address?.collectionTarget !== target) return [];
+    const field = getLiveCollectionField(state, address);
+    return field ? [{ address, field, group: item }] : [];
+  });
+  if (!Array.isArray(value) || nestedGroups.length === 0) return value;
+
+  const next = value.map((item) => (isPlainRecord(item) ? { ...item } : item));
+  for (const nested of nestedGroups) {
+    const item = next[resolveCollectionAddressIndex(state, nested.address, next)];
+    if (!isPlainRecord(item)) continue;
+    item[nested.address.fieldId] = decodeEvaluatedCollectionField(
+      nested.field,
+      getEvaluatedTimelineGroupValue(
+        nested.group,
+        timeSeconds,
+        item[nested.address.fieldId],
+      ),
+      item[nested.address.fieldId],
+    );
+  }
+  return next;
 }
 
 export function evaluateToolcraftTimelineValues(
-  state: ToolcraftState,
+  state: ReadonlyToolcraftState,
   timeSeconds = state.timeline.currentTimeSeconds,
 ): Record<string, unknown> {
   const values = { ...state.values };
 
   for (const group of state.timeline.keyframeGroups) {
+    if (decodeToolcraftCollectionItemControlAddress(group.controlId)) continue;
     values[group.controlId] = getEvaluatedTimelineGroupValue(
       group,
       timeSeconds,
       state.values[group.controlId],
+    );
+  }
+
+  const collectionTargets = new Set(
+    state.timeline.keyframeGroups.flatMap((group) => {
+      const address = decodeToolcraftCollectionItemControlAddress(
+        group.controlId,
+      );
+      return address ? [address.collectionTarget] : [];
+    }),
+  );
+  for (const target of collectionTargets) {
+    values[target] = evaluateToolcraftTimelineValue(
+      { ...state, values },
+      target,
+      timeSeconds,
     );
   }
 

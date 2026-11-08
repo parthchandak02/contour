@@ -1,3 +1,7 @@
+import {
+  sanitizeComposedHostProps,
+  type SafeComposedHostElementProps,
+} from "../primitives/sanitize-composed-host-props";
 import * as React from "react";
 import { QuestionIcon } from "@phosphor-icons/react";
 
@@ -11,6 +15,10 @@ import {
   TooltipTrigger,
 } from "../primitives";
 import { cn } from "../../lib/utils";
+import {
+  ControlSectionHelp,
+  ControlSectionTitle,
+} from "./control-section-title";
 
 type ControlFieldLabelActionContextValue = {
   action: React.ReactNode;
@@ -37,10 +45,10 @@ export function ControlSection({
   children,
   className,
   ...props
-}: React.HTMLAttributes<HTMLElement>): React.JSX.Element {
+}: SafeComposedHostElementProps<"section">): React.JSX.Element {
   return (
     <section
-      {...props}
+      {...sanitizeComposedHostProps(props)}
       className={cn(
         panelSectionSurfaceClassName,
         "group/control-section gap-[14px]",
@@ -61,7 +69,10 @@ export function ControlList({
 }): React.JSX.Element {
   return (
     <div
-      className={cn("flex min-w-0 flex-col gap-[14px]", className)}
+      className={cn(
+        "flex min-w-0 flex-col [--control-list-gap:14px] gap-[var(--control-list-gap)]",
+        className,
+      )}
       data-control-list=""
     >
       {children}
@@ -76,7 +87,7 @@ export function ControlInlineGroup({
   kind = "default",
   style,
   ...props
-}: React.HTMLAttributes<HTMLDivElement> & {
+}: SafeComposedHostElementProps<"div"> & {
   columns?: number;
   kind?: "default" | "slider" | "toggleParameter";
 }): React.JSX.Element {
@@ -87,7 +98,7 @@ export function ControlInlineGroup({
 
   return (
     <div
-      {...props}
+      {...sanitizeComposedHostProps(props)}
       className={cn(
         "grid min-w-0",
         kind === "slider" ? "gap-4" : "gap-x-2.5 gap-y-2",
@@ -113,12 +124,14 @@ export function ControlSectionHeader({
   collapsed = false,
   collapsible = false,
   children,
+  description,
   onCollapsedChange,
 }: {
   action?: React.ReactNode;
   collapsed?: boolean;
   collapsible?: boolean;
   children: React.ReactNode;
+  description?: string;
   onCollapsedChange?: (collapsed: boolean) => void;
 }): React.JSX.Element {
   const titleText = getControlSectionHeaderText(children);
@@ -133,45 +146,37 @@ export function ControlSectionHeader({
     onCollapsedChange?.(!collapsed);
   }, [collapsed, collapsible, onCollapsedChange]);
 
-  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
-    if (!collapsible || (event.key !== "Enter" && event.key !== " ")) {
-      return;
-    }
-
-    event.preventDefault();
-    toggleCollapsed();
-  }
-
-  function stopHeaderToggle(event: React.SyntheticEvent): void {
-    event.stopPropagation();
-  }
-
   return (
     <div
-      aria-expanded={collapsible ? !collapsed : undefined}
-      aria-label={collapsible ? collapseLabel : undefined}
-      className={cn(
-        "flex h-9 min-w-0 items-center justify-between gap-2 px-3",
-        collapsible && "cursor-pointer select-none",
-      )}
+      className="flex h-9 min-w-0 items-center justify-between gap-2 px-3"
       data-collapsed={collapsible ? String(collapsed) : undefined}
       data-collapsible={collapsible ? "" : undefined}
       data-slot="control-section-header"
-      onClick={collapsible ? toggleCollapsed : undefined}
-      onKeyDown={handleKeyDown}
-      role={collapsible ? "button" : undefined}
-      tabIndex={collapsible ? 0 : undefined}
     >
-      <div className="flex min-w-0 items-center gap-1 has-data-[icon-active=true]:[&_[data-slot=panel-title]]:text-[color:var(--link)]">
-        {children}
+      <div className="flex h-full min-w-0 flex-1 items-center gap-1">
+        {collapsible ? (
+          <Button
+            aria-expanded={!collapsed}
+            aria-label={`Toggle ${titleText} section`}
+            className="h-full min-w-0 shrink justify-start border-0 px-0 text-left"
+            data-control-section-title-button=""
+            onClick={toggleCollapsed}
+            type="button"
+            variant="ghost-static"
+          >
+            <ControlSectionTitle titleText={titleText}>
+              {children}
+            </ControlSectionTitle>
+          </Button>
+        ) : (
+          <ControlSectionTitle titleText={titleText}>
+            {children}
+          </ControlSectionTitle>
+        )}
+        <ControlSectionHelp description={description} titleText={titleText} />
       </div>
       {action || collapsible ? (
-        <div
-          className="inline-flex shrink-0 items-center gap-1"
-          onClick={stopHeaderToggle}
-          onKeyDown={stopHeaderToggle}
-          onPointerDown={stopHeaderToggle}
-        >
+        <div className="inline-flex shrink-0 items-center gap-1">
           {action}
           {collapsible ? (
             <Tooltip>
@@ -235,19 +240,26 @@ export function ControlItem({
   const showCompoundTopDivider =
     compoundDividerPlacement === "both" || compoundDividerPlacement === "top";
   const showCompoundBottomDivider =
-    compoundDividerPlacement === "both" || compoundDividerPlacement === "bottom";
+    compoundDividerPlacement === "both" ||
+    compoundDividerPlacement === "bottom";
 
   return (
     <div
       className={cn(
-        "min-w-0",
+        "min-w-0 after-plain-curve:mt-[calc(20px-var(--control-list-gap))]",
         !flush && "px-3",
         allowCompoundDividers &&
+          "has-data-[control-section-divider=compound]:relative",
+        allowCompoundDividers &&
           showCompoundBottomDivider &&
-          "has-data-[control-section-divider=compound]:relative has-data-[control-section-divider=compound]:pb-[18px] has-data-[control-section-divider=compound]:after:absolute has-data-[control-section-divider=compound]:after:bottom-0 has-data-[control-section-divider=compound]:after:h-px has-data-[control-section-divider=compound]:after:bg-[color:color-mix(in_oklab,var(--border)_8%,transparent)]",
+          "has-data-[control-section-divider=compound]:pb-[19px] has-data-[control-section-divider=compound]:has-data-[slot=curves-control]:pb-[21px] has-data-[control-section-divider=compound]:after:absolute has-data-[control-section-divider=compound]:after:bottom-0 has-data-[control-section-divider=compound]:after:h-px has-data-[control-section-divider=compound]:after:bg-[color:color-mix(in_oklab,var(--border)_8%,transparent)]",
         allowCompoundDividers &&
           showCompoundTopDivider &&
-          "has-data-[control-section-divider=compound]:pt-[18px] has-data-[control-section-divider=compound]:before:absolute has-data-[control-section-divider=compound]:before:top-0 has-data-[control-section-divider=compound]:before:h-px has-data-[control-section-divider=compound]:before:bg-[color:color-mix(in_oklab,var(--border)_8%,transparent)]",
+          "has-data-[control-section-divider=compound]:pt-[19px] has-data-[control-section-divider=compound]:before:absolute has-data-[control-section-divider=compound]:before:top-0 has-data-[control-section-divider=compound]:before:h-px has-data-[control-section-divider=compound]:before:bg-[color:color-mix(in_oklab,var(--border)_8%,transparent)]",
+        // Share the previous bottom line and remove the ordinary list gap at this boundary.
+        allowCompoundDividers &&
+          showCompoundTopDivider &&
+          "after-compound-divider:-mt-[var(--control-list-gap)] after-compound-divider:pt-[18px] after-compound-divider:before:hidden",
         allowCompoundDividers &&
           showCompoundBottomDivider &&
           (flush
@@ -262,7 +274,9 @@ export function ControlItem({
       data-control-item-compound-divider-placement={
         allowCompoundDividers ? compoundDividerPlacement : undefined
       }
-      data-control-item-compound-context={allowCompoundDividers ? "" : undefined}
+      data-control-item-compound-context={
+        allowCompoundDividers ? "" : undefined
+      }
     >
       {children}
     </div>
@@ -276,7 +290,7 @@ export function PanelTitle({
 }): React.JSX.Element {
   return (
     <p
-      className="m-0 text-2xs leading-none font-semibold text-[color:color-mix(in_oklab,var(--foreground)_75%,transparent)] uppercase transition-colors duration-150 ease-out"
+      className="m-0 text-2xs leading-none font-semibold whitespace-nowrap text-[color:color-mix(in_oklab,var(--foreground)_75%,transparent)] uppercase transition-colors duration-150 ease-out"
       data-slot="panel-title"
     >
       {children}
@@ -382,17 +396,22 @@ export function ControlFieldLabel({
         <Tooltip>
           <TooltipTrigger
             render={
-              <button
+              <Button
                 aria-label={`${title ?? "Control"} help`}
-                className="ml-[3px] inline-flex size-3.5 shrink-0 items-center justify-center rounded-full text-[color:color-mix(in_oklab,var(--foreground)_40%,transparent)] transition-colors duration-150 ease-out hover:text-[color:color-mix(in_oklab,var(--foreground)_60%,transparent)] focus-visible:outline-none"
+                className="ml-[3px]"
                 data-control-field-help=""
+                size="icon-xxs"
                 type="button"
+                variant="ghost"
               />
             }
           >
             <QuestionIcon className="size-3.5" weight="fill" />
           </TooltipTrigger>
-          <TooltipContent className="max-w-[240px] whitespace-normal text-left" side="top">
+          <TooltipContent
+            className="max-w-[240px] whitespace-normal text-left"
+            side="top"
+          >
             {labelHelp}
           </TooltipContent>
         </Tooltip>

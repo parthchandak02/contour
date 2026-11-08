@@ -1,5 +1,8 @@
 import { isToolcraftRuntimeOwnedTarget } from "./runtime-targets";
-import type { ToolcraftControlSchema } from "./types";
+import type {
+  ToolcraftCollectionItemControlSchema,
+  ToolcraftControlSchema,
+} from "./types";
 
 export type ToolcraftControlKeyframeCapabilityReason =
   | "control-type"
@@ -27,8 +30,16 @@ const keyframeCapableControlTypes = new Set([
   "vector",
 ]);
 
+export function getToolcraftCollectionItemKeyframeCapability(
+  field: ToolcraftCollectionItemControlSchema,
+): ToolcraftControlKeyframeCapability {
+  return keyframeCapableControlTypes.has(field.type)
+    ? { capable: true, reason: "control-type" }
+    : { capable: false, reason: "control-type" };
+}
+
 export function getToolcraftControlKeyframeCapability(
-  control: ToolcraftControlSchema,
+  control: Pick<ToolcraftControlSchema, "target" | "type">,
 ): ToolcraftControlKeyframeCapability {
   if (isToolcraftRuntimeOwnedTarget(control.target)) {
     return {

@@ -1,6 +1,13 @@
-import type { CurvePoint } from "../control-types";
+import {
+  clampCurveValue as clamp,
+  createCurveEvaluator,
+  normalizeCurvePoints,
+  type CurveInterpolation,
+  type CurvePoint,
+} from "../../../lib/curve";
 
-export type CurveInterpolation = "monotone" | "smooth";
+export { clamp, normalizeCurvePoints };
+export type { CurveInterpolation };
 
 export const curveViewBoxSize = 268;
 export const curveInset = 18;
@@ -9,14 +16,6 @@ export const curveGraphMax = curveInset + curveGraphSize;
 export const curveGridStops = [0.25, 0.5, 0.75] as const;
 export const curveHitThreshold = 10;
 export const defaultCurveInterpolation = "smooth" satisfies CurveInterpolation;
-
-export function clamp(value: number): number {
-  return Math.min(1, Math.max(0, value));
-}
-
-export function normalizeCurvePoints(points: readonly CurvePoint[]): CurvePoint[] {
-  return points.map((point) => ({ x: clamp(point.x), y: clamp(point.y) })).sort(sortPointsByX);
-}
 
 export function mapPointToSvg(point: CurvePoint): [number, number] {
   return [curveInset + point.x * curveGraphSize, curveGraphMax - point.y * curveGraphSize];
@@ -55,8 +54,9 @@ export function constrainCurvePoint(
 
   const previousPoint = points[index - 1];
   const nextPoint = points[index + 1];
-  const minX = (previousPoint?.x ?? 0) + 0.01;
-  const maxX = (nextPoint?.x ?? 1) - 0.01;
+  const gap = Math.min(0.01, ((nextPoint?.x ?? 1) - (previousPoint?.x ?? 0)) / 3);
+  const minX = (previousPoint?.x ?? 0) + gap;
+  const maxX = (nextPoint?.x ?? 1) - gap;
 
   return { x: Math.min(maxX, Math.max(minX, point.x)), y: point.y };
 }
@@ -76,32 +76,9 @@ export function insertCurvePoint(
   point: CurvePoint,
 ): { index: number; points: CurvePoint[] } {
   const normalizedPoints = normalizeCurvePoints(points);
-  const insertIndex = normalizedPoints.findIndex((item) => item.x > point.x);
-
-  if (insertIndex <= 0) {
-    return {
-      index: 0,
-      points: replaceCurvePoint(normalizedPoints, 0, { x: 0, y: point.y }),
-    };
-  }
-
-  if (insertIndex === -1) {
-    const endpointIndex = normalizedPoints.length - 1;
-
-    return {
-      index: endpointIndex,
-      points: replaceCurvePoint(normalizedPoints, endpointIndex, { x: 1, y: point.y }),
-    };
-  }
-
-  return {
-    index: insertIndex,
-    points: normalizeCurvePoints([
-      ...normalizedPoints.slice(0, insertIndex),
-      point,
-      ...normalizedPoints.slice(insertIndex),
-    ]),
-  };
+  const nextPoints = normalizeCurvePoints([...normalizedPoints, point]);
+  const index = nextPoints.findIndex((item) => item.x === clamp(point.x));
+  return { index, points: nextPoints };
 }
 
 export function removeCurvePoint(points: readonly CurvePoint[], index: number): CurvePoint[] {
@@ -125,231 +102,27 @@ export function getCurvePointAtX(
   x: number,
   interpolation: CurveInterpolation = defaultCurveInterpolation,
 ): CurvePoint {
-  const normalizedPoints = normalizeCurvePoints(points);
-  const firstPoint = normalizedPoints[0];
-
-  if (!firstPoint) {
-    return { x: clamp(x), y: 0 };
-  }
-
-  if (x <= firstPoint.x) {
-    return { x: firstPoint.x, y: firstPoint.y };
-  }
-
-  for (let index = 1; index < normalizedPoints.length; index += 1) {
-    const point = normalizedPoints[index];
-
-    if (point && x <= point.x) {
-      return getCurvePointInSegment(normalizedPoints, index, x, interpolation);
-    }
-  }
-
-  const lastPoint = normalizedPoints[normalizedPoints.length - 1] ?? firstPoint;
-
-  return { x: lastPoint.x, y: lastPoint.y };
+  return { x: clamp(x), y: createCurveEvaluator(points, interpolation)(x) };
 }
 
 export function getCurvePath(
   points: readonly CurvePoint[],
   interpolation: CurveInterpolation = defaultCurveInterpolation,
 ): string {
-  const normalizedPoints = normalizeCurvePoints(points);
-  const firstPoint = normalizedPoints[0];
-
-  if (!firstPoint) {
-    return "";
-  }
-
-  const tangents = getCurveTangents(normalizedPoints, interpolation);
-  const [startX, startY] = mapPointToSvg(firstPoint);
-  let path = `M ${startX} ${startY}`;
-
-  for (let index = 1; index < normalizedPoints.length; index += 1) {
-    path += getCurveSegmentPath(normalizedPoints, tangents, index);
-  }
-
-  return path;
-}
-
-function getCurveSegmentPath(
-  points: readonly CurvePoint[],
-  tangents: readonly number[],
-  index: number,
-): string {
-  const previousPoint = points[index - 1];
-  const point = points[index];
-  const deltaX = point.x - previousPoint.x;
-  const controlPointOne = {
-    x: previousPoint.x + deltaX / 3,
-    y: previousPoint.y + (deltaX * (tangents[index - 1] ?? 0)) / 3,
-  };
-  const controlPointTwo = {
-    x: point.x - deltaX / 3,
-    y: point.y - (deltaX * (tangents[index] ?? 0)) / 3,
-  };
-  const [controlOneX, controlOneY] = mapPointToSvg(controlPointOne);
-  const [controlTwoX, controlTwoY] = mapPointToSvg(controlPointTwo);
-  const [pointX, pointY] = mapPointToSvg(point);
-
-  return ` C ${controlOneX} ${controlOneY} ${controlTwoX} ${controlTwoY} ${pointX} ${pointY}`;
-}
-
-function getCurvePointInSegment(
-  points: readonly CurvePoint[],
-  index: number,
-  x: number,
-  interpolation: CurveInterpolation,
-): CurvePoint {
-  const previousPoint = points[index - 1];
-  const point = points[index];
-
-  if (!previousPoint || !point) {
-    return { x: clamp(x), y: 0 };
-  }
-
-  const tangents = getCurveTangents(points, interpolation);
-  const deltaX = Math.max(Number.EPSILON, point.x - previousPoint.x);
-  const t = clamp((x - previousPoint.x) / deltaX);
-  const tSquared = t * t;
-  const tCubed = tSquared * t;
-  const startTangent = tangents[index - 1] ?? 0;
-  const endTangent = tangents[index] ?? 0;
-  const y =
-    (2 * tCubed - 3 * tSquared + 1) * previousPoint.y +
-    (tCubed - 2 * tSquared + t) * deltaX * startTangent +
-    (-2 * tCubed + 3 * tSquared) * point.y +
-    (tCubed - tSquared) * deltaX * endTangent;
-
-  return { x: clamp(x), y: clamp(y) };
-}
-
-function getCurveTangents(
-  points: readonly CurvePoint[],
-  interpolation: CurveInterpolation,
-): number[] {
-  return interpolation === "monotone"
-    ? getMonotoneTangents(points)
-    : getSmoothTangents(points);
-}
-
-function getSmoothTangents(points: readonly CurvePoint[]): number[] {
-  if (points.length <= 1) {
-    return points.map(() => 0);
-  }
-
-  if (points.length === 2) {
-    const slope = getSlope(points[0], 0, points);
-
-    return [slope, slope];
-  }
-
-  return points.map((point, index) => {
-    if (index === 0) {
-      return getSlope(point, 0, points);
+  const normalized = normalizeCurvePoints(points);
+  if (!normalized.length) return "";
+  const evaluate = createCurveEvaluator(normalized, interpolation);
+  const stops = [...new Set([0, ...normalized.map((point) => point.x), 1])];
+  const vertices = [mapPointToSvg({ x: 0, y: evaluate(0) })];
+  for (let index = 1; index < stops.length; index++) {
+    const start = stops[index - 1],
+      end = stops[index];
+    // Sample each segment, retaining exact knots even for steep, narrow features.
+    const count = Math.max(24, Math.ceil((end - start) * 512));
+    for (let step = 1; step <= count; step++) {
+      const x = step === count ? end : start + ((end - start) * step) / count;
+      vertices.push(mapPointToSvg({ x, y: evaluate(x) }));
     }
-
-    if (index === points.length - 1) {
-      return getSlope(points[index - 1] ?? point, index - 1, points);
-    }
-
-    const previousPoint = points[index - 1];
-    const nextPoint = points[index + 1];
-    const deltaX = Math.max(Number.EPSILON, (nextPoint?.x ?? point.x) - previousPoint.x);
-
-    return ((nextPoint?.y ?? point.y) - previousPoint.y) / deltaX;
-  });
-}
-
-function getMonotoneTangents(points: readonly CurvePoint[]): number[] {
-  if (points.length <= 1) {
-    return points.map(() => 0);
   }
-
-  if (points.length === 2) {
-    const slope = getSlope(points[0], 0, points);
-
-    return [slope, slope];
-  }
-
-  const intervals = points.slice(0, -1).map((point, index) =>
-    Math.max(Number.EPSILON, (points[index + 1]?.x ?? point.x) - point.x),
-  );
-  const slopes = points.slice(0, -1).map((point, index) => getSlope(point, index, points));
-
-  return points.map((_, index) => {
-    if (index === 0) {
-      return getEndpointTangent({
-        adjacentInterval: intervals[1] ?? intervals[0] ?? 1,
-        interval: intervals[0] ?? 1,
-        adjacentSlope: slopes[1] ?? slopes[0] ?? 0,
-        slope: slopes[0] ?? 0,
-      });
-    }
-
-    if (index === points.length - 1) {
-      return getEndpointTangent({
-        adjacentInterval: intervals[index - 2] ?? intervals[index - 1] ?? 1,
-        interval: intervals[index - 1] ?? 1,
-        adjacentSlope: slopes[index - 2] ?? slopes[index - 1] ?? 0,
-        slope: slopes[index - 1] ?? 0,
-      });
-    }
-
-    const leftSlope = slopes[index - 1] ?? 0;
-    const rightSlope = slopes[index] ?? 0;
-
-    if (leftSlope * rightSlope <= 0) {
-      return 0;
-    }
-
-    const leftInterval = intervals[index - 1] ?? 1;
-    const rightInterval = intervals[index] ?? 1;
-    const leftWeight = 2 * rightInterval + leftInterval;
-    const rightWeight = rightInterval + 2 * leftInterval;
-
-    return (
-      (leftWeight + rightWeight) /
-      (leftWeight / leftSlope + rightWeight / rightSlope)
-    );
-  });
-}
-
-function getEndpointTangent({
-  adjacentInterval,
-  adjacentSlope,
-  interval,
-  slope,
-}: {
-  adjacentInterval: number;
-  adjacentSlope: number;
-  interval: number;
-  slope: number;
-}): number {
-  const tangent =
-    ((2 * interval + adjacentInterval) * slope - interval * adjacentSlope) /
-    (interval + adjacentInterval);
-
-  if (Math.sign(tangent) !== Math.sign(slope)) {
-    return 0;
-  }
-
-  if (
-    Math.sign(slope) !== Math.sign(adjacentSlope) &&
-    Math.abs(tangent) > Math.abs(3 * slope)
-  ) {
-    return 3 * slope;
-  }
-
-  return tangent;
-}
-
-function getSlope(point: CurvePoint, index: number, points: readonly CurvePoint[]): number {
-  const nextPoint = points[index + 1];
-  const deltaX = Math.max(Number.EPSILON, nextPoint.x - point.x);
-
-  return (nextPoint.y - point.y) / deltaX;
-}
-
-function sortPointsByX(left: CurvePoint, right: CurvePoint): number {
-  return left.x - right.x;
+  return vertices.map(([x, y], index) => `${index === 0 ? "M" : "L"} ${x} ${y}`).join(" ");
 }

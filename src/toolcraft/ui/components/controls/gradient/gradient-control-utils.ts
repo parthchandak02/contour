@@ -1,4 +1,5 @@
 import type { GradientStop, GradientType } from "../control-types";
+import { getNativeColorPickerValue } from "../color/color-value-utils";
 
 export type IndexedGradientStop = GradientStop & { originalIndex: number };
 
@@ -50,37 +51,13 @@ export function normalizeStopOpacity(opacity: string): number {
 }
 
 export function normalizeColorInput(value: string): string {
-  const trimmedValue = value.trim();
-
-  if (/^[\da-f]{6}$/i.test(trimmedValue)) {
-    return `#${trimmedValue.toUpperCase()}`;
-  }
-
-  if (/^#[\da-f]{6}$/i.test(trimmedValue)) {
-    return trimmedValue.toUpperCase();
-  }
-
-  return getNativeColorPickerValue(trimmedValue).toUpperCase();
+  return getNativeColorPickerValue(value).toUpperCase();
 }
 
 export function formatColorInputValue(color: string): string {
   const normalizedColor = getNativeColorPickerValue(color).toUpperCase();
 
   return normalizedColor.slice(1);
-}
-
-export function getNativeColorPickerValue(color: string): string {
-  const trimmedColor = color.trim();
-
-  if (/^#[\da-f]{6}$/i.test(trimmedColor)) {
-    return trimmedColor.toUpperCase();
-  }
-
-  if (/^[\da-f]{6}$/i.test(trimmedColor)) {
-    return `#${trimmedColor.toUpperCase()}`;
-  }
-
-  return "#000000";
 }
 
 export function sortStops(stops: readonly GradientStop[]): GradientStop[] {

@@ -2,14 +2,16 @@
 
 import { Children, isValidElement, useEffect, useRef, useState } from "react";
 
+import { selectBrowserElementContents } from "./browser-transport";
 import { Slider } from "./slider";
 
 const editableValueTextBaseClassName =
-  "block h-full min-w-0 overflow-hidden whitespace-nowrap font-sans text-xs leading-5 tabular-nums";
+  "block h-full min-w-0 overflow-hidden whitespace-nowrap text-xs leading-5 tabular-nums";
 const valueLabelContainerClassName = "inline-grid h-5 shrink-0";
 
 type EditableSliderValueLabelLayout = "content" | "reference";
 type EditableSliderValueLabelTextAlign = "left" | "right";
+type EditableSliderValueLabelFont = "sans" | "mono";
 
 type SliderMetadataProps = {
   max?: number;
@@ -19,6 +21,7 @@ type SliderMetadataProps = {
 type EditableSliderValueLabelProps = {
   ariaLabel: string;
   disabled?: boolean;
+  font?: EditableSliderValueLabelFont;
   layout?: EditableSliderValueLabelLayout;
   maxValueLabel?: string;
   onCommit?: (nextValue: string) => void;
@@ -30,6 +33,7 @@ type EditableSliderValueLabelProps = {
 export function EditableSliderValueLabel({
   ariaLabel,
   disabled = false,
+  font = "sans",
   layout = "reference",
   maxValueLabel,
   onCommit,
@@ -39,9 +43,10 @@ export function EditableSliderValueLabel({
 }: EditableSliderValueLabelProps): React.JSX.Element {
   const [editing, setEditing] = useState(false);
   const editorRef = useRef<HTMLSpanElement>(null);
+  const finishedRef = useRef(false);
   const valueLabelRef = useRef(valueLabel);
   const isEditableValueLabel = hasEditableNumericValueLabel(valueLabel);
-  const valueTextClassName = getEditableValueTextClassName({ layout, textAlign });
+  const valueTextClassName = getEditableValueTextClassName({ font, layout, textAlign });
   const widestValueLabel = getWidestValueLabel(valueLabel, maxValueLabel);
 
   useEffect(() => {
@@ -69,7 +74,7 @@ export function EditableSliderValueLabel({
 
     return (
       <span className={getValueLabelContainerClassName(layout, "cursor-default")}>
-        {layout === "reference" ? <SliderValueLabelMeasure valueLabel={widestValueLabel} /> : null}
+        {layout === "reference" ? <SliderValueLabelMeasure textClassName={valueTextClassName} valueLabel={widestValueLabel} /> : null}
         <span
           className={`col-start-1 row-start-1 cursor-default ${valueTextToneClassName} ${valueTextClassName}`}
         >
@@ -80,19 +85,21 @@ export function EditableSliderValueLabel({
   }
 
   function commitDraft(): void {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
     onCommit?.(editorRef.current?.textContent ?? valueLabelRef.current);
     setEditing(false);
   }
 
   return (
     <span className={getValueLabelContainerClassName(layout)}>
-      {layout === "reference" ? <SliderValueLabelMeasure valueLabel={widestValueLabel} /> : null}
+      {layout === "reference" ? <SliderValueLabelMeasure textClassName={valueTextClassName} valueLabel={widestValueLabel} /> : null}
       {editing ? (
         <EditableSliderValueEditor
           ariaLabel={ariaLabel}
           editorRef={editorRef}
           layout={layout}
-          onCancel={() => setEditing(false)}
+          onCancel={() => { finishedRef.current = true; setEditing(false); }}
           onCommit={commitDraft}
           onStep={onStep}
           textClassName={valueTextClassName}
@@ -101,7 +108,7 @@ export function EditableSliderValueLabel({
         <EditableSliderValueButton
           ariaLabel={ariaLabel}
           layout={layout}
-          onBeginEditing={() => setEditing(true)}
+          onBeginEditing={() => { finishedRef.current = false; setEditing(true); }}
           textClassName={valueTextClassName}
           valueLabel={valueLabel}
         />
@@ -110,16 +117,14 @@ export function EditableSliderValueLabel({
   );
 }
 
-function SliderValueLabelMeasure({ valueLabel }: { valueLabel: string }): React.JSX.Element {
+function SliderValueLabelMeasure({ textClassName, valueLabel }: {
+  textClassName: string;
+  valueLabel: string;
+}): React.JSX.Element {
   return (
     <span
       aria-hidden="true"
-      className={`invisible col-start-1 row-start-1 min-w-[4ch] pointer-events-none text-[color:var(--muted-foreground)] ${getEditableValueTextClassName(
-        {
-          layout: "reference",
-          textAlign: "right",
-        },
-      )}`}
+      className={`invisible col-start-1 row-start-1 min-w-[4ch] pointer-events-none text-[color:var(--muted-foreground)] ${textClassName}`}
       data-slider-value-label-measure=""
     >
       {valueLabel}
@@ -141,14 +146,17 @@ function getValueLabelContainerClassName(
 }
 
 function getEditableValueTextClassName({
+  font,
   layout,
   textAlign,
 }: {
+  font: EditableSliderValueLabelFont;
   layout: EditableSliderValueLabelLayout;
   textAlign: EditableSliderValueLabelTextAlign;
 }): string {
   return [
     editableValueTextBaseClassName,
+    font === "mono" ? "font-mono" : "font-sans",
     layout === "content" ? "w-auto" : "w-full",
     textAlign === "left" ? "text-left" : "text-right",
   ].join(" ");
@@ -329,14 +337,5 @@ function hasEditableNumericValueLabel(valueLabel: string): boolean {
 }
 
 function selectEditableText(node: HTMLElement): void {
-  const selection = window.getSelection();
-
-  if (!selection) {
-    return;
-  }
-
-  const range = document.createRange();
-  range.selectNodeContents(node);
-  selection.removeAllRanges();
-  selection.addRange(range);
+  selectBrowserElementContents(node);
 }

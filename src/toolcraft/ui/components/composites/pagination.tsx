@@ -1,68 +1,64 @@
+import { sanitizeComposedHostProps, type SafeComposedHostElementProps } from "../primitives/sanitize-composed-host-props";
 import * as React from "react";
 
 import { CaretLeftIcon, CaretRightIcon, DotsThreeIcon } from "@phosphor-icons/react";
-import { Button } from "../primitives";
+import {
+  Anchor,
+  Button,
+} from "../primitives";
 import { cn } from "../../lib/utils";
 
-function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
+function Pagination({ className, ...props }: SafeComposedHostElementProps<"nav">) {
   return (
     <nav
       aria-label="pagination"
       data-slot="pagination"
       className={cn("mx-auto flex w-full justify-center", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function PaginationContent({ className, ...props }: React.ComponentProps<"ul">) {
+function PaginationContent({ className, ...props }: SafeComposedHostElementProps<"ul">) {
   return (
     <ul
       data-slot="pagination-content"
       className={cn("flex items-center gap-0.5", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function PaginationItem({ ...props }: React.ComponentProps<"li">) {
-  return <li data-slot="pagination-item" {...props} />;
+function PaginationItem({ ...props }: SafeComposedHostElementProps<"li">) {
+  return <li data-slot="pagination-item" {...sanitizeComposedHostProps(props)} />;
 }
 
 type PaginationLinkProps = {
   isActive?: boolean;
-} & {
   size?: "default" | "icon";
-} & React.ComponentProps<"a">;
+} & Omit<React.ComponentProps<"a">, "href"> & {
+  href: string;
+};
 
 function PaginationLink({
   children,
   className,
   isActive,
+  ref,
   size = "icon",
   ...props
 }: PaginationLinkProps) {
   return (
     <Button
+      aria-current={isActive ? "page" : undefined}
       className={className}
+      data-active={isActive}
+      nativeButton={false}
       radius="md"
+      role="link"
       size={size}
       variant={isActive ? "outline" : "ghost-muted"}
-      render={(renderProps) => {
-        const { children: renderedChildren, ...renderedAnchorProps } =
-          renderProps as React.ComponentProps<"a">;
-
-        return (
-          <a
-            {...renderedAnchorProps}
-            {...props}
-            aria-current={isActive ? "page" : undefined}
-            data-active={isActive}
-          >
-            {renderedChildren}
-          </a>
-        );
-      }}
+      render={<Anchor {...props} ref={ref} />}
     >
       {children}
     </Button>
@@ -104,13 +100,13 @@ function PaginationNext({
   );
 }
 
-function PaginationEllipsis({ className, ...props }: React.ComponentProps<"span">) {
+function PaginationEllipsis({ className, ...props }: SafeComposedHostElementProps<"span">) {
   return (
     <Button
       aria-hidden
       className={cn("pointer-events-none", className)}
       radius="md"
-      render={<span data-slot="pagination-ellipsis" {...props} />}
+      render={<span data-slot="pagination-ellipsis" {...sanitizeComposedHostProps(props)} />}
       size="icon"
       variant="ghost-muted"
     >

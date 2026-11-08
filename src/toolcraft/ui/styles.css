@@ -2,6 +2,20 @@
   border-radius: var(--radius-lg);
 }
 
+/* A compound item's bottom edge owns the boundary with the next compound item. */
+@custom-variant after-compound-divider {
+  [data-control-list] > [data-control-item-compound-context]:not([data-control-item-compound-divider-placement='top']):has([data-control-section-divider='compound']) + &:has([data-control-section-divider='compound']) {
+    @slot;
+  }
+}
+
+/* A curve without its own divider uses the following item's gap for its trailing clearance. */
+@custom-variant after-plain-curve {
+  [data-control-list] > :has([data-slot='curves-control']):not([data-control-item-compound-context]:has([data-control-section-divider='compound'])) + & {
+    @slot;
+  }
+}
+
 @custom-variant data-open {
   &:where([data-state='open']),
   &:where([data-open]:not([data-open='false'])) {
@@ -183,6 +197,95 @@
 .button-xl-icon-size svg:not([class*="size-"]) {
   width: var(--button-xl-icon-size);
   height: var(--button-xl-icon-size);
+}
+
+.toaster [data-sonner-toast].cn-toast[data-styled="true"] {
+  --toast-title-line-height: 21px;
+  padding: 8px 8px 10px 12px;
+}
+
+.toaster [data-sonner-toast].cn-toast[data-styled="true"] [data-content] {
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+
+.toaster [data-sonner-toast].cn-toast[data-styled="true"] [data-title] {
+  font-size: 14px;
+  line-height: var(--toast-title-line-height);
+}
+
+.toaster [data-sonner-toast].cn-toast[data-styled="true"]:has([data-close-button]) [data-title] {
+  padding-right: 28px;
+}
+
+.toaster [data-sonner-toast].cn-toast[data-styled="true"] [data-close-button] {
+  top: 8px;
+  right: 8px;
+  left: auto;
+  transform: none;
+  color: var(--foreground);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  opacity: 0.75;
+  transition: opacity 100ms;
+}
+
+.toaster [data-sonner-toast].cn-toast[data-styled="true"] [data-close-button]:hover {
+  background: transparent;
+  opacity: 1;
+}
+
+.toaster [data-sonner-toast].cn-toast[data-styled="true"] [data-close-button] svg {
+  width: 14px;
+  height: 14px;
+}
+
+.toaster [data-sonner-toast].cn-toast[data-styled="true"] [data-close-button]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.toaster [data-sonner-toast].cn-toast[data-styled="true"] [data-description] {
+  color: color-mix(in oklab, var(--foreground) 75%, transparent);
+}
+
+.toaster [data-sonner-toast].cn-toast[data-styled="true"] [data-icon] {
+  align-self: flex-start;
+  margin-inline: 0;
+  margin-top: calc((var(--toast-title-line-height) - 16px) / 2);
+}
+
+.toaster [data-sonner-toast].cn-toast[data-styled="true"] [data-icon]:has([data-slot="toast-status-dot"]) {
+  width: 6px;
+  height: 6px;
+  margin-top: calc((var(--toast-title-line-height) - 6px) / 2);
+  margin-inline-end: 4px;
+}
+
+@keyframes poster-status-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/* Prime chat timing: a 1s color pulse, then a 0.3s pause for six letters. */
+@keyframes poster-saving-shimmer {
+  0%, 76.923077%, 100% { color: var(--color-neutral-500, #737373); }
+  38.461538% { color: var(--color-neutral-300, #d4d4d4); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .poster-saving-text > span {
+    display: inline-block;
+    animation: poster-saving-shimmer 1.3s ease-in-out infinite both;
+  }
 }
 
 @keyframes button-loader-sweep {

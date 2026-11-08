@@ -1,4 +1,5 @@
 import * as React from "react";
+import { clearBrowserTimeout, setBrowserTimeout } from "../../primitives/browser-transport";
 
 const hoverIntentDwellMs = 160;
 
@@ -17,7 +18,7 @@ export function useHoverIntent<T>({
 
   const cancelIntent = React.useCallback(() => {
     if (timeoutRef.current !== null) {
-      window.clearTimeout(timeoutRef.current);
+      clearBrowserTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
 
@@ -28,7 +29,7 @@ export function useHoverIntent<T>({
     (value: T) => {
       cancelIntent();
       pendingValueRef.current = value;
-      timeoutRef.current = window.setTimeout(() => {
+      timeoutRef.current = setBrowserTimeout(() => {
         timeoutRef.current = null;
         const pendingValue = pendingValueRef.current;
         pendingValueRef.current = undefined;

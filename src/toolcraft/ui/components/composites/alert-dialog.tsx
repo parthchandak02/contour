@@ -1,15 +1,16 @@
 "use client";
 
+import { sanitizeComposedHostProps, type SafeComposedHostElementProps } from "../primitives/sanitize-composed-host-props";
 import * as React from "react";
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 
 import {
+  Button,
   PortalLayerContainerProvider,
   type PortalLayerContainer,
   usePortalLayerContainer,
 } from "../primitives";
 import { cn } from "../../lib/utils";
-import { Button } from "../primitives";
 
 function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />;
@@ -79,7 +80,7 @@ function AlertDialogContent({
   );
 }
 
-function AlertDialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+function AlertDialogHeader({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="alert-dialog-header"
@@ -87,12 +88,12 @@ function AlertDialogHeader({ className, ...props }: React.ComponentProps<"div">)
         "group/alert-dialog-header grid justify-items-center gap-x-3 gap-y-2 text-center sm:justify-items-start sm:text-left has-[>[data-slot=alert-dialog-media]]:grid-cols-[auto_1fr] has-[>[data-slot=alert-dialog-media]]:items-start has-[>[data-slot=alert-dialog-media]]:justify-items-start has-[>[data-slot=alert-dialog-media]]:text-left",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function AlertDialogFooter({ className, ...props }: React.ComponentProps<"div">) {
+function AlertDialogFooter({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="alert-dialog-footer"
@@ -100,12 +101,12 @@ function AlertDialogFooter({ className, ...props }: React.ComponentProps<"div">)
         "mt-1 flex flex-col-reverse gap-2 border-t border-[color:color-mix(in_oklab,var(--border)_10%,transparent)] pt-4 group-data-[size=sm]/alert-dialog-content:grid group-data-[size=sm]/alert-dialog-content:grid-cols-2 group-data-[size=sm]/alert-dialog-content:[&>[data-slot=alert-dialog-action]]:w-full group-data-[size=sm]/alert-dialog-content:[&>[data-slot=alert-dialog-cancel]]:w-full sm:flex sm:justify-end sm:[&>[data-slot=alert-dialog-action]]:w-auto sm:[&>[data-slot=alert-dialog-cancel]]:w-auto",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function AlertDialogMedia({ className, ...props }: React.ComponentProps<"div">) {
+function AlertDialogMedia({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="alert-dialog-media"
@@ -113,7 +114,7 @@ function AlertDialogMedia({ className, ...props }: React.ComponentProps<"div">) 
         "inline-flex size-10 items-center justify-center rounded-full border border-[color:color-mix(in_oklab,var(--border)_50%,transparent)] bg-[color:color-mix(in_oklab,var(--muted)_60%,transparent)] text-[color:var(--foreground)] shadow-xs group-has-[>[data-slot=alert-dialog-media]]/alert-dialog-header:row-span-2 *:[svg:not([class*='size-'])]:size-4",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }

@@ -1,8 +1,11 @@
+import { sanitizeComposedHostProps, type SafeComposedHostElementProps } from "../primitives/sanitize-composed-host-props";
 import * as React from "react";
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 
 import { cn } from "../../lib/utils";
-import { PrimitiveArrowIcon } from "../primitives";
+import {
+  PrimitiveArrowIcon,
+} from "../primitives";
 import { CheckIcon } from "@phosphor-icons/react";
 
 function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
@@ -250,7 +253,7 @@ function DropdownMenuSeparator({
 function DropdownMenuShortcut({
   className,
   ...props
-}: React.ComponentProps<"span">) {
+}: SafeComposedHostElementProps<"span">) {
   return (
     <span
       data-slot="dropdown-menu-shortcut"
@@ -258,7 +261,7 @@ function DropdownMenuShortcut({
         "ml-auto text-[0.625rem] tracking-widest text-[color:var(--muted-foreground)] group-focus/dropdown-menu-item:text-[color:var(--accent-foreground)]",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
@@ -266,7 +269,7 @@ function DropdownMenuShortcut({
 function DropdownMenuSubText({
   className,
   ...props
-}: React.ComponentProps<"span">) {
+}: SafeComposedHostElementProps<"span">) {
   return (
     <span
       data-slot="dropdown-menu-subtext"
@@ -274,7 +277,7 @@ function DropdownMenuSubText({
         "text-xs font-normal !text-[color:color-mix(in_oklab,var(--foreground)_60%,transparent)]",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }

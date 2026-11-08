@@ -89,6 +89,7 @@ export function CurveGraph({
         </clipPath>
       </defs>
       <rect
+        data-slot="curve-background-surface"
         fill="transparent"
         height={curveGraphSize}
         onPointerDown={onBackgroundPointerDown}
@@ -374,6 +375,7 @@ function CurvePointHandle({
         <button
           aria-label={`Curve point ${index + 1}`}
           aria-pressed={selected ? true : undefined}
+          data-slot="curve-point-handle"
           data-dragging={dragging}
           data-selected={selected}
           className="m-0 flex size-2.5 cursor-grab items-center justify-center rounded-full border-2 bg-[color:var(--background)] p-0 shadow-[0_1px_4px_color-mix(in_oklab,var(--background)_70%,transparent)] outline-none transition-[background-color,width,height] duration-150 ease-out hover:size-3 hover:bg-[color:var(--background)] active:size-3 active:cursor-grabbing active:bg-[color:var(--background)] data-[dragging=true]:size-3 data-[selected=true]:size-3 data-[selected=true]:bg-[color:var(--foreground)]"

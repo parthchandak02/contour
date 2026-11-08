@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "title": "Contour",
+  "asset": "public/toolcraft/cover.png",
+  "generation": {
+    "kind": "app-composition",
+    "source": "src/app/app-composition.tsx",
+    "state": "app-cover-state.json",
+    "description": "Actual app export (4K PNG) of the default map: the Matterhorn from live AWS Terrain Tiles, Medium area, 50 m contours, Tinted style on paper; 16:9 output, no editor UI."
+  }
+}

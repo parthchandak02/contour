@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode, Ref } from "react";
 export type ScrollFadeSide = "top" | "bottom" | "left" | "right";
 export type ScrollFadeIntensity = "normal" | "medium" | "dense";
 export type ScrollFadePreset = "compact" | "default" | "large";
+export type ScrollFadeScrollBoundaryBehavior = "contain" | "chain";
 export type ScrollFadeVisibilityMode = "overflow" | "terminal";
 
 export interface ScrollFadeProps extends Omit<
@@ -21,6 +22,7 @@ export interface ScrollFadeProps extends Omit<
   intensity?: ScrollFadeIntensity;
   interactionWatch?: readonly unknown[];
   preset?: ScrollFadePreset;
+  scrollBoundaryBehavior?: ScrollFadeScrollBoundaryBehavior;
   side?: ScrollFadeSide;
   showOppositeSide?: boolean;
   visibilityMode?: ScrollFadeVisibilityMode;

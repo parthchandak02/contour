@@ -25,6 +25,7 @@ type UseSliderThumbResetOptions<Value extends number | readonly number[]> = {
     eventDetails: SliderPrimitive.Root.CommitEventDetails,
   ) => void;
   isDiscrete: boolean;
+  onValueReset?: (value: Value) => void;
   max: number;
   min: number;
   resetValue?: Value;
@@ -85,6 +86,7 @@ export function useSliderThumbReset<Value extends number | readonly number[]>({
   handleValueChange,
   handleValueCommitted,
   isDiscrete,
+  onValueReset,
   max,
   min,
   resetValue,
@@ -117,6 +119,10 @@ export function useSliderThumbReset<Value extends number | readonly number[]>({
       );
       const currentValue = normalizeSliderValueShape(values, value, defaultValue, min);
       const resetThumbValue = getThumbResetValue(currentValue, normalizedResetValue, index);
+      if (onValueReset) {
+        onValueReset(resetThumbValue);
+        return;
+      }
       const nextValue = isDiscrete
         ? snapSliderValue(resetThumbValue, min, max, step, snapValues)
         : resetThumbValue;
@@ -140,6 +146,7 @@ export function useSliderThumbReset<Value extends number | readonly number[]>({
       handleValueChange,
       handleValueCommitted,
       isDiscrete,
+      onValueReset,
       max,
       min,
       resetValue,

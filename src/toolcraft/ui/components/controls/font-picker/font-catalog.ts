@@ -1,4 +1,4 @@
-import catalogJson from "./font-catalog.json";
+import catalogJson from "./font-catalog.json" with { type: "json" };
 
 export type FontPickerFontCategory =
   | "display"

@@ -19,10 +19,7 @@ export type ControlValueChangeHandler<Value> = (
 
 export type CurveChannel = "RGB" | "R" | "G" | "B";
 
-export type CurvePoint = {
-  x: number;
-  y: number;
-};
+export type { CurvePoint } from "../../lib/curve";
 
 export type GradientType = "linear" | "radial" | "angular" | "diamond";
 

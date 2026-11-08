@@ -1,4 +1,8 @@
 import * as React from "react";
+import {
+  readBrowserViewportWidth,
+  subscribeBrowserMediaQuery,
+} from "../components/primitives/browser-transport";
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -6,15 +10,17 @@ export function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined);
 
   React.useEffect(() => {
-    const mediaQueryList = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
     const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+      setIsMobile((readBrowserViewportWidth() ?? MOBILE_BREAKPOINT) < MOBILE_BREAKPOINT);
     };
 
-    mediaQueryList.addEventListener("change", onChange);
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    const unsubscribe = subscribeBrowserMediaQuery(
+      `(max-width: ${MOBILE_BREAKPOINT - 1}px)`,
+      onChange,
+    );
+    onChange();
 
-    return () => mediaQueryList.removeEventListener("change", onChange);
+    return unsubscribe;
   }, []);
 
   return !!isMobile;

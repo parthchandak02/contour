@@ -1,0 +1,15 @@
+{
+  "values": {
+    "appearance.background": "#F3EEE3",
+    "export.image.format": "png",
+    "export.image.resolution": "4k",
+    "export.includeBackground": true,
+    "map.area": "12",
+    "map.interval": 50,
+    "map.style": "tinted",
+    "place.latitude": 45.976,
+    "place.longitude": 7.659
+  },
+  "canvas": { "size": { "width": 1920, "height": 1080 } },
+  "data": "Live AWS Terrain Tiles (Terrarium) for zoom 12 around 45.976, 7.659 at capture time"
+}

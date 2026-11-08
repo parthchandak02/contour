@@ -1,8 +1,14 @@
 export const toolcraftTimelinePanelVisibleTarget = "panels.timeline.visible";
 export const toolcraftTimelinePanelExtendedTarget = "panels.timeline.extended";
+export const toolcraftCanvasInfinityTarget = "canvas.infinity";
+export const toolcraftCanvasRotationLockedTarget = "canvas.rotationLocked";
+export const toolcraftCanvasWorkspaceBackgroundTarget = "canvas.workspaceBackground";
 
 export const toolcraftRuntimeOwnedTargets = [
   "canvas.aspectRatio",
+  toolcraftCanvasInfinityTarget,
+  toolcraftCanvasRotationLockedTarget,
+  toolcraftCanvasWorkspaceBackgroundTarget,
   "canvas.renderScale",
   "canvas.size.width",
   "canvas.size.height",
@@ -37,6 +43,18 @@ export function getToolcraftCanvasSizeTargetDimension(
 
 export function isToolcraftCanvasAspectRatioTarget(target: string): boolean {
   return target === "canvas.aspectRatio";
+}
+
+export function isToolcraftCanvasSizingTarget(target: string): boolean {
+  return (
+    isToolcraftCanvasInfinityTarget(target) ||
+    isToolcraftCanvasAspectRatioTarget(target) ||
+    getToolcraftCanvasSizeTargetDimension(target) !== null
+  );
+}
+
+export function isToolcraftCanvasInfinityTarget(target: string): boolean {
+  return target === toolcraftCanvasInfinityTarget;
 }
 
 export function isToolcraftTimelinePanelVisibleTarget(target: string): boolean {

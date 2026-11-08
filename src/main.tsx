@@ -1,18 +1,6 @@
-import * as React from "react";
-import { createRoot } from "react-dom/client";
-import { RouterProvider } from "@tanstack/react-router";
+import { startDesktopApp } from "./desktop-access";
+import "./desktop-access.css";
 
-import { router } from "./router";
-import "./styles.css";
+const dispose = startDesktopApp(() => import("./app-bootstrap"));
 
-const rootElement = document.getElementById("root");
-
-if (!rootElement) {
-  throw new Error("Root element #root was not found.");
-}
-
-createRoot(rootElement).render(
-  <React.StrictMode>
-    <RouterProvider router={router} />
-  </React.StrictMode>,
-);
+if (import.meta.hot) import.meta.hot.dispose(dispose);

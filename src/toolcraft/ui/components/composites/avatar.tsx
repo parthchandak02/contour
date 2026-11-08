@@ -1,7 +1,9 @@
-import * as React from "react";
+import { sanitizeComposedHostProps, type SafeComposedHostElementProps } from "../primitives/sanitize-composed-host-props";
 import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar";
 
 import { cn } from "../../lib/utils";
+import {
+} from "../primitives";
 
 function Avatar({
   className,
@@ -46,7 +48,7 @@ function AvatarFallback({ className, ...props }: AvatarPrimitive.Fallback.Props)
   );
 }
 
-function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
+function AvatarBadge({ className, ...props }: SafeComposedHostElementProps<"span">) {
   return (
     <span
       data-slot="avatar-badge"
@@ -57,12 +59,12 @@ function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
         "group-data-[size=lg]/avatar:size-3 group-data-[size=lg]/avatar:[&>svg]:size-2",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
+function AvatarGroup({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="avatar-group"
@@ -70,12 +72,12 @@ function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
         "group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-[color:var(--background)]",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function AvatarGroupCount({ className, ...props }: React.ComponentProps<"div">) {
+function AvatarGroupCount({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="avatar-group-count"
@@ -83,7 +85,7 @@ function AvatarGroupCount({ className, ...props }: React.ComponentProps<"div">) 
         "relative flex size-8 shrink-0 items-center justify-center rounded-full bg-[color:var(--muted)] text-xs/relaxed text-[color:var(--muted-foreground)] ring-2 ring-[color:var(--background)] group-has-data-[size=lg]/avatar-group:size-10 group-has-data-[size=sm]/avatar-group:size-6 [&>svg]:size-4 group-has-data-[size=lg]/avatar-group:[&>svg]:size-5 group-has-data-[size=sm]/avatar-group:[&>svg]:size-3",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }

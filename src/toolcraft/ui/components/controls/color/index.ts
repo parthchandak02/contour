@@ -6,6 +6,13 @@ export {
   ColorOpacityControl as ColorOpacity,
   ColorValueControl,
 } from "./color-control";
+export {
+  getCommittedHexColor,
+  getHexDraftValue,
+  getNativeColorPickerValue,
+  getSanitizedHexDraft,
+  getSwatchColorValue,
+} from "./color-value-utils";
 export type {
   ColorControlInput,
   ColorControlInputPair,
@@ -23,11 +30,11 @@ export {
   StyleGuideColorPicker,
 } from "./style-guide-color-picker";
 export {
-  getColorSurfaceSliderConfig,
   getColorSurfaceStyle,
   getColorSurfaceThumbPosition,
-} from "./style-guide-color-picker-parts";
-export { getSurfaceHsvColor } from "./style-guide-color-picker-logic";
+} from "./color-surface";
+export { getColorSurfaceSliderConfig } from "./color-model-slider";
+export { getSurfaceHsvColor } from "./style-guide-color-picker-surface-geometry";
 export {
   PALETTE_SHADE_STEPS,
   PaletteControl,

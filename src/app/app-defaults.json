@@ -1,0 +1,81 @@
+{
+  "version": 2,
+  "appId": "contour",
+  "state": {
+    "values": {
+      "export.includeBackground": true,
+      "appearance.background": "#F3EEE3",
+      "canvas.workspaceBackground": "dots",
+      "canvas.aspectRatio": {
+        "height": 9,
+        "mode": "preset",
+        "value": "16:9",
+        "width": 16
+      },
+      "canvas.size.width": 1920,
+      "canvas.size.height": 1080,
+      "canvas.renderScale": 2,
+      "export.image.format": "png",
+      "export.image.resolution": "4k",
+      "place.latitude": 45.976,
+      "place.longitude": 7.659,
+      "map.area": "12",
+      "map.interval": 50,
+      "map.style": "tinted"
+    },
+    "canvas": {
+      "offset": {
+        "x": -110,
+        "y": 0
+      },
+      "size": {
+        "height": 1080,
+        "unit": "px",
+        "width": 1920
+      },
+      "zoom": 50,
+      "mode": "finite"
+    },
+    "panels": {
+      "controls": {
+        "collapsedSections": {},
+        "offset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "layers": {
+        "offset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "timeline": {
+        "offset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "toolbar": {
+        "offset": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    "timeline": {
+      "currentTimeSeconds": 0,
+      "durationSeconds": 8,
+      "expanded": false,
+      "isLooping": true,
+      "isPlaying": true,
+      "selectedKeyframeId": null,
+      "keyframeGroups": []
+    },
+    "layers": [],
+    "selectedLayerId": null,
+    "mediaAssets": []
+  },
+  "resources": [],
+  "theme": "light"
+}

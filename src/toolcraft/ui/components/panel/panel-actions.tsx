@@ -2,45 +2,15 @@
 
 import type { ReactElement, ReactNode } from "react";
 import * as React from "react";
-import {
-  ArrowCounterClockwiseIcon,
-  CheckIcon,
-  CopySimpleIcon,
-  DownloadSimpleIcon,
-  EraserIcon,
-  ExportIcon,
-  MagicWandIcon,
-  ShuffleIcon,
-  UploadSimpleIcon,
-} from "@phosphor-icons/react";
 
+import {
+  renderActionIcon,
+  type ActionIconName,
+} from "../action-icon-catalog";
 import { Button } from "../primitives";
 import { cn } from "../../lib/utils";
 
-export type PanelActionIconName =
-  | "check"
-  | "copy"
-  | "download"
-  | "download-simple"
-  | "eraser"
-  | "export"
-  | "rotate-ccw"
-  | "shuffle"
-  | "upload-simple"
-  | "wand-sparkles";
-
-const panelActionIconComponents = {
-  check: CheckIcon,
-  copy: CopySimpleIcon,
-  download: DownloadSimpleIcon,
-  "download-simple": DownloadSimpleIcon,
-  eraser: EraserIcon,
-  export: ExportIcon,
-  "rotate-ccw": ArrowCounterClockwiseIcon,
-  shuffle: ShuffleIcon,
-  "upload-simple": UploadSimpleIcon,
-  "wand-sparkles": MagicWandIcon,
-} as const;
+export type PanelActionIconName = ActionIconName;
 
 type PanelActionVariant = NonNullable<
   React.ComponentProps<typeof Button>["variant"]
@@ -83,9 +53,10 @@ function getPanelActionIcon(action: PanelActionOption): ReactNode {
     return action.icon;
   }
 
-  const Icon = panelActionIconComponents[action.icon];
-
-  return <Icon data-icon="inline-start" data-icon-name={action.icon} />;
+  return renderActionIcon(action.icon, {
+    "data-icon": "inline-start",
+    "data-icon-name": action.icon,
+  });
 }
 
 function getPanelActionAriaLabel(

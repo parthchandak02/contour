@@ -27,6 +27,7 @@ export {
   Select,
   Slider,
   Switch,
+  TabsControl,
   TextInput,
   Vector,
 } from "./components/controls";

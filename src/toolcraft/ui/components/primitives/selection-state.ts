@@ -1,3 +1,7 @@
+/** Shared image/cover selection outline; leaves the image itself unmodified. */
+export const selectedImageOutlineClassName =
+  "data-[selected=true]:outline data-[selected=true]:outline-[1px] data-[selected=true]:outline-offset-2 data-[selected=true]:outline-[color:var(--link)] data-[selected=true]:[outline-style:solid]";
+
 export const selectedItemSurfaceClassName =
   "bg-[color:color-mix(in_oklab,var(--link)_12%,transparent)]";
 

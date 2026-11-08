@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import { parseSliderEditValue } from "../slider/slider-edit-value";
 
 import {
   EditableSliderValueLabel,
   Field,
+  FieldError,
   Slider,
 } from "../../primitives";
 import { ControlFieldLabel } from "../../control-layout";
@@ -26,6 +28,8 @@ export type RangeSliderControlProps = {
   max?: number;
   min?: number;
   name: string;
+  /** Optional numeric commit policy; return an error to retain the current value. */
+  onValueEdit?: (value: readonly number[], reason?: "reset") => string | undefined;
   onValueChange?: ControlValueChangeHandler<readonly number[]>;
   step?: number;
   unit?: string;
@@ -42,6 +46,7 @@ export function RangeSliderControl({
   min = 0,
   name,
   onValueChange,
+  onValueEdit,
   step = 0.1,
   unit,
   value,
@@ -49,10 +54,11 @@ export function RangeSliderControl({
   variant = "continuous",
 }: RangeSliderControlProps): React.JSX.Element {
   const [rangeValue, setRangeValue] = React.useState<readonly number[]>(value);
+  const [editError, setEditError] = React.useState<string>();
   const liveHistoryGroupRef = React.useRef<string | null>(null);
   const resolvedValueLabel = valueLabel
     ? applySliderValueLabelUnit(valueLabel, unit)
-    : formatRangeSliderValue(rangeValue, unit);
+    : formatRangeSliderValue(rangeValue, step, unit);
 
   React.useEffect(() => {
     setRangeValue(value);
@@ -78,11 +84,18 @@ export function RangeSliderControl({
     const resolvedValue =
       typeof nextValue === "number" ? [nextValue, nextValue] : [...nextValue];
 
+    setEditError(undefined);
     setRangeValue(resolvedValue);
     onValueChange?.(resolvedValue, meta);
   }
 
   function commitValueLabel(nextValueLabel: string): void {
+    if (onValueEdit) {
+      finishLiveHistoryGroup();
+      const parsed = parseSliderEditValue(nextValueLabel, true, unit);
+      setEditError(parsed ? onValueEdit(parsed) : "Enter two valid numbers.");
+      return;
+    }
     const nextValue = parseRangeSliderDraft(nextValueLabel, { max, min, step });
 
     if (!nextValue) {
@@ -94,7 +107,7 @@ export function RangeSliderControl({
   }
 
   return (
-    <Field className="min-w-0 gap-1!" data-disabled={disabled}>
+    <Field className="min-w-0 gap-1!" data-disabled={disabled} data-invalid={Boolean(editError)}>
       <div className="flex w-full min-w-0 items-center justify-between gap-3">
         <ControlFieldLabel>{name}</ControlFieldLabel>
         <EditableSliderValueLabel
@@ -112,11 +125,16 @@ export function RangeSliderControl({
         disabled={disabled}
         onValueChange={(nextValue) => updateValue(nextValue, getLiveHistoryMeta())}
         onValueCommitted={finishLiveHistoryGroup}
+        onValueReset={onValueEdit ? nextValue => {
+          setEditError(onValueEdit(nextValue, "reset"));
+          finishLiveHistoryGroup();
+        } : undefined}
         resetValue={baseValue ?? value}
         step={step}
         value={rangeValue}
         variant={variant}
       />
+      {editError ? <FieldError>{editError}</FieldError> : null}
     </Field>
   );
 }

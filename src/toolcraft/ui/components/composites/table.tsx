@@ -1,20 +1,22 @@
-import * as React from "react";
+import { sanitizeComposedHostProps, type SafeComposedHostElementProps } from "../primitives/sanitize-composed-host-props";
 
 import { cn } from "../../lib/utils";
+import {
+} from "../primitives";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+function Table({ className, ...props }: SafeComposedHostElementProps<"table">) {
   return (
     <div data-slot="table-container" className="relative w-full overflow-x-auto">
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-xs", className)}
-        {...props}
+        {...sanitizeComposedHostProps(props)}
       />
     </div>
   );
 }
 
-function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
+function TableHeader({ className, ...props }: SafeComposedHostElementProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
@@ -22,22 +24,22 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
         "[&_tr]:border-b [&_tr]:border-[color:color-mix(in_oklab,var(--border)_10%,transparent)]",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
+function TableBody({ className, ...props }: SafeComposedHostElementProps<"tbody">) {
   return (
     <tbody
       data-slot="table-body"
       className={cn("[&_tr:last-child]:border-0", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
+function TableFooter({ className, ...props }: SafeComposedHostElementProps<"tfoot">) {
   return (
     <tfoot
       data-slot="table-footer"
@@ -45,12 +47,12 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
         "border-t border-[color:color-mix(in_oklab,var(--border)_10%,transparent)] bg-[color:color-mix(in_oklab,var(--muted)_50%,transparent)] font-medium [&>tr]:last:border-b-0",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
+function TableRow({ className, ...props }: SafeComposedHostElementProps<"tr">) {
   return (
     <tr
       data-slot="table-row"
@@ -58,12 +60,12 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
         "border-b border-[color:color-mix(in_oklab,var(--border)_10%,transparent)] transition-colors hover:bg-[color:color-mix(in_oklab,var(--muted)_50%,transparent)] data-[state=selected]:bg-[color:var(--muted)]",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+function TableHead({ className, ...props }: SafeComposedHostElementProps<"th">) {
   return (
     <th
       data-slot="table-head"
@@ -71,27 +73,27 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
         "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-[color:var(--foreground)] [&:has([role=checkbox])]:pr-0",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function TableCell({ className, ...props }: SafeComposedHostElementProps<"td">) {
   return (
     <td
       data-slot="table-cell"
       className={cn("p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function TableCaption({ className, ...props }: React.ComponentProps<"caption">) {
+function TableCaption({ className, ...props }: SafeComposedHostElementProps<"caption">) {
   return (
     <caption
       data-slot="table-caption"
       className={cn("mt-4 text-xs text-[color:var(--muted-foreground)]", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }

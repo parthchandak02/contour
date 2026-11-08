@@ -19,6 +19,7 @@ export function ScrollFade({
   intensity,
   interactionWatch = [],
   preset,
+  scrollBoundaryBehavior = "contain",
   side = "bottom",
   showOppositeSide = false,
   style,
@@ -61,6 +62,7 @@ export function ScrollFade({
         className={className}
         isHorizontal={isHorizontal}
         props={props}
+        scrollBoundaryBehavior={scrollBoundaryBehavior}
         side={side}
         viewportStyle={viewportStyle}
         viewportVisible={viewportVisible}

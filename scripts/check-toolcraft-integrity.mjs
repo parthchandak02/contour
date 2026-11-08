@@ -1,63 +1,25 @@
 #!/usr/bin/env node
 
 import crypto from "node:crypto";
+import { realpathSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { validateIntegrityManifest } from "./toolcraft-integrity-manifest.mjs";
+import { getToolcraftContractDocIntegrityFailures } from "./toolcraft-contract-doc-integrity.mjs";
+import {
+  requiredPackageScriptNames,
+  requiredProtectedTrustRootFilePaths,
+  reservedGeneratedVerificationConfigPatterns,
+} from "./toolcraft-integrity-policy.mjs";
+import {
+  assertToolcraftVerificationInventoryProvenance,
+  collectToolcraftVerificationInputs,
+} from "./toolcraft-verification-inventory.mjs";
+
 const appRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
-const toolcraftRoot = path.join(appRoot, "src/toolcraft");
-const manifestPath = path.join(toolcraftRoot, ".toolcraft-manifest.json");
-const appSourceRoot = path.join(appRoot, "src/app");
-const routesSourceRoot = path.join(appRoot, "src/routes");
-const runtimeSurfaceComponentNames = [
-  "ToolcraftRoot",
-  "CanvasShell",
-  "ControlsPanel",
-  "LayersPanel",
-  "TimelinePanel",
-  "ToolbarPanel",
-];
-const runtimeSurfaceNamePattern = runtimeSurfaceComponentNames.join("|");
-const lowLevelRuntimeSurfaceImportPattern = new RegExp(
-  `import\\s*\\{[^}]*\\b(?:${runtimeSurfaceNamePattern})\\b[^}]*\\}\\s*from\\s*["'][^"']*runtime/react["']`,
-);
-const manualRuntimeSurfaceRenderPattern = new RegExp(
-  `<\\s*(?:(?:${runtimeSurfaceNamePattern})\\b|[A-Za-z_$][\\w$]*\\.(?:${runtimeSurfaceNamePattern})\\b)|React\\.createElement\\s*\\(\\s*(?:(?:${runtimeSurfaceNamePattern})\\b|[A-Za-z_$][\\w$]*\\.(?:${runtimeSurfaceNamePattern})\\b)`,
-);
-const builtInControlComponentNames = [
-  "ActionsControl",
-  "AnchorGridControl",
-  "ChannelMixerControl",
-  "CheckboxControl",
-  "CodeTextareaControl",
-  "ColorControl",
-  "ColorOpacityControl",
-  "CurvesControl",
-  "FileDropControl",
-  "FontPickerControl",
-  "GradientControl",
-  "ImagePickerControl",
-  "PaletteControl",
-  "PanelActionsControl",
-  "RangeInputControl",
-  "RangeSliderControl",
-  "SegmentedControl",
-  "SelectControl",
-  "SliderControl",
-  "SwitchControl",
-  "TextInputControl",
-  "VectorControl",
-];
-const builtInControlNamePattern = builtInControlComponentNames.join("|");
-const repoUiImportPattern = "@repo" + "/ui";
-const builtInControlImportSourcePattern = ["toolcraft/ui", repoUiImportPattern].join("|");
-const builtInControlImportPattern = new RegExp(
-  `import\\s*\\{[^}]*\\b(?:${builtInControlNamePattern})\\b[^}]*\\}\\s*from\\s*["'][^"']*(?:${builtInControlImportSourcePattern})[^"']*["']`,
-);
-const directBuiltInControlRenderPattern = new RegExp(
-  `<\\s*(?:(?:${builtInControlNamePattern})\\b|[A-Za-z_$][\\w$]*\\.(?:${builtInControlNamePattern})\\b)|React\\.createElement\\s*\\(\\s*(?:(?:${builtInControlNamePattern})\\b|[A-Za-z_$][\\w$]*\\.(?:${builtInControlNamePattern})\\b)`,
-);
+const manifestRepoPath = "src/toolcraft/.toolcraft-manifest.json";
 
 async function pathExists(filePath) {
   try {
@@ -68,13 +30,31 @@ async function pathExists(filePath) {
   }
 }
 
-async function hashFile(filePath) {
-  const buffer = await fs.readFile(filePath);
-  return crypto.createHash("sha256").update(buffer).digest("hex");
+function sha256(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
 }
 
-async function collectFiles(rootDir) {
+async function hashFile(filePath) {
+  return sha256(await fs.readFile(filePath));
+}
+
+function reportIntegrityFailures(failures) {
+  console.error("Toolcraft generated app integrity check failed.");
+  console.error(
+    "Do not edit src/toolcraft or framework-owned verification infrastructure in generated apps.",
+  );
+  console.error(
+    "Fix the source runtime in the monorepo, generate a fresh app folder, then move product-owned app source deliberately.",
+  );
+
+  for (const failure of failures) {
+    console.error(`- ${failure}`);
+  }
+}
+
+async function collectToolcraftInventory(rootDir) {
   const files = [];
+  const unsupportedEntries = [];
 
   async function visit(currentDir) {
     const entries = await fs.readdir(currentDir, { withFileTypes: true });
@@ -89,144 +69,273 @@ async function collectFiles(rootDir) {
 
       if (entry.isFile() && entry.name !== ".toolcraft-manifest.json") {
         files.push(path.relative(rootDir, filePath).split(path.sep).join("/"));
+        continue;
+      }
+
+      if (!entry.isFile()) {
+        unsupportedEntries.push(
+          path.relative(rootDir, filePath).split(path.sep).join("/"),
+        );
       }
     }
   }
 
   await visit(rootDir);
-  return files.sort();
+  return {
+    files: files.sort(),
+    unsupportedEntries: unsupportedEntries.sort(),
+  };
 }
 
-function stripJsComments(source) {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/(^|[^:])\/\/.*$/gm, "$1");
-}
+async function collectIntegrityFailures({ platformOnly, rootDir }) {
+  const toolcraftRoot = path.join(rootDir, "src/toolcraft");
+  const manifestPath = path.join(rootDir, ...manifestRepoPath.split("/"));
 
-async function collectSourceText(rootDir, { excludeTests = false } = {}) {
-  if (!(await pathExists(rootDir))) {
-    return "";
+  if (!(await pathExists(toolcraftRoot))) {
+    return {
+      failures: ["Missing generated Toolcraft source tree src/toolcraft."],
+    };
   }
 
-  const chunks = [];
+  if (!(await pathExists(manifestPath))) {
+    return {
+      failures: [
+        "Missing src/toolcraft/.toolcraft-manifest.json; generated apps must preserve the integrity manifest.",
+      ],
+    };
+  }
 
-  async function visit(currentDir) {
-    const entries = await fs.readdir(currentDir, { withFileTypes: true });
+  const manifestBuffer = await fs.readFile(manifestPath);
+  const manifestHash = sha256(manifestBuffer);
+  const manifest = JSON.parse(manifestBuffer.toString("utf8"));
+  const manifestValidation = validateIntegrityManifest({
+    appRoot: rootDir,
+    manifest,
+    requiredPackageScriptNames,
+    requiredProtectedTrustRootFilePaths,
+    toolcraftRoot,
+  });
 
-    for (const entry of entries) {
-      const filePath = path.join(currentDir, entry.name);
+  if (manifestValidation.failures.length > 0) {
+    return {
+      failures: manifestValidation.failures,
+      manifestHash,
+    };
+  }
 
-      if (entry.isDirectory()) {
-        await visit(filePath);
-        continue;
-      }
+  const {
+    expectedPackageScripts,
+    resolvedExpectedFiles,
+    resolvedProtectedFiles,
+  } = manifestValidation;
 
-      if (!entry.isFile() || !/\.[cm]?[jt]sx?$/.test(entry.name)) {
-        continue;
-      }
+  const toolcraftInventory = await collectToolcraftInventory(toolcraftRoot);
+  const actualFiles = toolcraftInventory.files;
+  const actualFileSet = new Set(actualFiles);
+  const failures = toolcraftInventory.unsupportedEntries.map(
+    (relativePath) => `unsupported Toolcraft entry ${relativePath}`,
+  );
 
-      if (excludeTests && /\.(test|spec)\.[cm]?[jt]sx?$/.test(entry.name)) {
-        continue;
-      }
-
-      chunks.push(await fs.readFile(filePath, "utf8"));
+  const rootEntries = await fs.readdir(rootDir, { withFileTypes: true });
+  for (const entry of rootEntries) {
+    if (
+      reservedGeneratedVerificationConfigPatterns.some((pattern) =>
+        pattern.test(entry.name),
+      ) &&
+      !resolvedProtectedFiles.has(entry.name)
+    ) {
+      failures.push(`unapproved verification config ${entry.name}`);
     }
   }
 
-  await visit(rootDir);
-  return stripJsComments(chunks.join("\n"));
-}
+  try {
+    const packageJson = JSON.parse(
+      await fs.readFile(path.join(rootDir, "package.json"), "utf8"),
+    );
+    const actualPackageScripts = packageJson.scripts ?? {};
 
-if (!(await pathExists(manifestPath))) {
-  console.log("Toolcraft integrity manifest not found; skipping copied source check.");
-  process.exit(0);
-}
+    for (const [scriptName, expectedCommand] of expectedPackageScripts) {
+      if (actualPackageScripts[scriptName] !== expectedCommand) {
+        failures.push(`modified package script ${scriptName}`);
+      }
+    }
 
-const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
-const expectedFiles = new Map(
-  Object.entries(manifest.files ?? {}).map(([relativePath, hash]) => [
+    for (const scriptName of Object.keys(actualPackageScripts)) {
+      const lifecycleTarget = scriptName.startsWith("pre")
+        ? scriptName.slice("pre".length)
+        : scriptName.startsWith("post")
+          ? scriptName.slice("post".length)
+          : "";
+
+      if (
+        expectedPackageScripts.has(lifecycleTarget) &&
+        !expectedPackageScripts.has(scriptName)
+      ) {
+        failures.push(`added package lifecycle script ${scriptName}`);
+      }
+    }
+  } catch {
+    failures.push("missing or invalid package.json");
+  }
+
+  if (!platformOnly) {
+    const {
+      evaluateToolcraftProductBoundary,
+      printToolcraftProductBoundaryResult,
+      toolcraftProductBoundaryPassed,
+    } = await import("./toolcraft-product-boundary.mjs");
+    const productBoundaryResult = await evaluateToolcraftProductBoundary({
+      protectedFilePaths: [...resolvedProtectedFiles.keys()],
+      rootDir,
+    });
+
+    if (!toolcraftProductBoundaryPassed(productBoundaryResult)) {
+      const boundaryMessages = [];
+      printToolcraftProductBoundaryResult(productBoundaryResult, {
+        error(message) {
+          boundaryMessages.push(message.replace(/^- /u, ""));
+        },
+      });
+      failures.push(...boundaryMessages);
+    }
+  }
+
+  for (const [
     relativePath,
-    String(hash),
-  ]),
-);
-const actualFiles = await collectFiles(toolcraftRoot);
-const actualFileSet = new Set(actualFiles);
-const failures = [];
-const routesSource = await collectSourceText(routesSourceRoot, { excludeTests: true });
-const implementationSource = [
-  routesSource,
-  await collectSourceText(appSourceRoot, { excludeTests: true }),
-].join("\n");
+    { expectedHash, filePath },
+  ] of resolvedExpectedFiles) {
+    if (!actualFileSet.has(relativePath)) {
+      failures.push(`deleted ${relativePath}`);
+      continue;
+    }
 
-if (!/\bToolcraftApp\b/.test(implementationSource)) {
-  failures.push(
-    "app shell bypass: src/routes or src/app must render ToolcraftApp instead of replacing the Toolcraft runtime shell",
-  );
-}
+    const actualHash = await hashFile(filePath);
 
-if (lowLevelRuntimeSurfaceImportPattern.test(implementationSource)) {
-  failures.push(
-    "app shell bypass: app-specific source must not import low-level runtime surfaces; render ToolcraftApp and use schema, canvasContent, controlRenderers, onPanelAction, and runtime commands",
-  );
-}
-
-if (manualRuntimeSurfaceRenderPattern.test(implementationSource)) {
-  failures.push(
-    "app shell bypass: app-specific source must not render low-level runtime surfaces such as CanvasShell, ControlsPanel, TimelinePanel, LayersPanel, or ToolbarPanel directly",
-  );
-}
-
-if (builtInControlImportPattern.test(implementationSource)) {
-  failures.push(
-    "control bypass: app-specific source must not import built-in Toolcraft control components directly; declare schema controls or register a true custom controlRenderer",
-  );
-}
-
-if (directBuiltInControlRenderPattern.test(implementationSource)) {
-  failures.push(
-    "control bypass: app-specific source must not render built-in Toolcraft control components directly; declare schema controls or register a true custom controlRenderer",
-  );
-}
-
-if (/<\s*iframe\b|React\.createElement\s*\(\s*["']iframe["']/i.test(routesSource)) {
-  failures.push(
-    "app shell bypass: route files must not render a full-page iframe; preserve reference behavior inside ToolcraftApp canvasContent",
-  );
-}
-
-for (const relativePath of expectedFiles.keys()) {
-  if (!actualFileSet.has(relativePath)) {
-    failures.push(`deleted ${relativePath}`);
-    continue;
+    if (actualHash !== expectedHash) {
+      failures.push(`modified ${relativePath}`);
+    }
   }
 
-  const actualHash = await hashFile(path.join(toolcraftRoot, relativePath));
+  for (const relativePath of actualFiles) {
+    if (!resolvedExpectedFiles.has(relativePath)) {
+      failures.push(`added ${relativePath}`);
+    }
+  }
 
-  if (actualHash !== expectedFiles.get(relativePath)) {
-    failures.push(`modified ${relativePath}`);
+  for (const [
+    relativePath,
+    { expectedHash, filePath },
+  ] of resolvedProtectedFiles) {
+    if (!(await pathExists(filePath))) {
+      failures.push(`deleted ${relativePath}`);
+      continue;
+    }
+
+    if ((await hashFile(filePath)) !== expectedHash) {
+      failures.push(`modified ${relativePath}`);
+    }
+  }
+
+  failures.push(
+    ...(await getToolcraftContractDocIntegrityFailures({
+      appRoot: rootDir,
+      protectedRelativePaths: resolvedProtectedFiles.keys(),
+    })),
+  );
+
+  return { failures, manifestHash };
+}
+
+export class ToolcraftIntegrityError extends Error {
+  constructor(failures) {
+    super(failures.join("\n"));
+    this.failures = Object.freeze([...failures]);
+    this.name = "ToolcraftIntegrityError";
   }
 }
 
-for (const relativePath of actualFiles) {
-  if (!expectedFiles.has(relativePath)) {
-    failures.push(`added ${relativePath}`);
+export async function evaluateToolcraftIntegrity({
+  inventory,
+  platformOnly = false,
+  rootDir = appRoot,
+}) {
+  const resolvedRoot = path.resolve(rootDir);
+  try {
+    assertToolcraftVerificationInventoryProvenance({
+      inventory,
+      rootDir: resolvedRoot,
+    });
+  } catch (error) {
+    throw new ToolcraftIntegrityError([
+      error instanceof Error ? error.message : String(error),
+    ]);
+  }
+  const result = await collectIntegrityFailures({
+    platformOnly,
+    rootDir: resolvedRoot,
+  });
+  if (result.failures.length > 0) {
+    throw new ToolcraftIntegrityError(result.failures);
+  }
+  const manifestInventoryEntry = inventory.entries.find(
+    (entry) => entry.path === manifestRepoPath,
+  );
+  if (
+    manifestInventoryEntry === undefined ||
+    manifestInventoryEntry.sha256 !== result.manifestHash
+  ) {
+    throw new ToolcraftIntegrityError([
+      "Toolcraft integrity manifest does not match the authoritative verification inventory.",
+    ]);
+  }
+  return Object.freeze({
+    manifestHash: result.manifestHash,
+    sourceHash: inventory.sourceHash,
+  });
+}
+
+async function runCli() {
+  let inventory;
+  try {
+    inventory = await collectToolcraftVerificationInputs(appRoot);
+  } catch (error) {
+    throw new ToolcraftIntegrityError([
+      error instanceof Error ? error.message : String(error),
+    ]);
+  }
+  await evaluateToolcraftIntegrity({
+    inventory,
+    platformOnly: process.argv.includes("--platform-only"),
+  });
+  const toolcraftFileCount = inventory.entries.filter(
+    (entry) =>
+      entry.path.startsWith("src/toolcraft/") &&
+      entry.path !== manifestRepoPath,
+  ).length;
+  console.log(
+    `Toolcraft integrity check passed (${toolcraftFileCount} files).`,
+  );
+}
+
+function isDirectCliInvocation(argvEntry) {
+  if (!argvEntry) return false;
+  try {
+    return (
+      realpathSync(path.resolve(argvEntry)) ===
+      realpathSync(fileURLToPath(import.meta.url))
+    );
+  } catch {
+    return false;
   }
 }
 
-if (failures.length > 0) {
-  console.error("Toolcraft generated app integrity check failed.");
-  console.error(
-    "Do not edit src/toolcraft or replace the Toolcraft runtime shell in generated apps.",
-  );
-  console.error(
-    "Fix the app schema/source runtime in the monorepo, preserve ToolcraftApp, then regenerate.",
-  );
-
-  for (const failure of failures) {
-    console.error(`- ${failure}`);
-  }
-
-  process.exit(1);
+if (isDirectCliInvocation(process.argv[1])) {
+  runCli().catch((error) => {
+    if (error instanceof ToolcraftIntegrityError) {
+      reportIntegrityFailures(error.failures);
+    } else {
+      console.error(error instanceof Error ? error.message : error);
+    }
+    process.exitCode = 1;
+  });
 }
-
-console.log(`Toolcraft integrity check passed (${actualFiles.length} files).`);

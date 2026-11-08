@@ -2,7 +2,13 @@
 
 import * as React from "react";
 
-import { Button, Tooltip, TooltipContent, TooltipTrigger } from "../primitives";
+import { browserMediaQueryMatches } from "../primitives/browser-transport";
+import {
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../primitives";
 import { cn } from "../../lib/utils";
 
 export type PanelIconButtonProps = {
@@ -36,9 +42,9 @@ export function PanelIconButton({
 
   function animateIconPress(): void {
     const icon = iconRef.current;
-    const prefersReducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const prefersReducedMotion = browserMediaQueryMatches(
+      "(prefers-reduced-motion: reduce)",
+    );
 
     if (!spinOnClick || !icon || prefersReducedMotion) {
       return;

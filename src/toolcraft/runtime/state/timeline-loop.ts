@@ -33,3 +33,10 @@ export function getToolcraftTimelineLoopProgress(
 
   return getToolcraftTimelineLoopTime(options) / options.durationSeconds;
 }
+
+/** The authored playback policy applied to an elapsed preview clock. */
+export function getToolcraftTimelinePlaybackTime(options: ToolcraftTimelineLoopOptions & Pick<ToolcraftTimelineState, "isLooping">): number {
+  if (options.isLooping) return getToolcraftTimelineLoopTime(options);
+  if (!Number.isFinite(options.currentTimeSeconds) || !Number.isFinite(options.durationSeconds) || options.durationSeconds <= 0) return 0;
+  return Math.min(options.durationSeconds, Math.max(0, options.currentTimeSeconds));
+}

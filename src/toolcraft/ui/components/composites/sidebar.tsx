@@ -3,7 +3,21 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
 
-import { Button } from "../primitives";
+import {
+  subscribeBrowserWindowEvent,
+  writeBrowserCookie,
+} from "../primitives/browser-transport";
+import {
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../primitives";
+import {
+  sanitizeComposedHostProps,
+  sanitizeInteractionHostProps,
+  type SafeComposedHostElementProps,
+} from "../primitives/sanitize-composed-host-props";
 import {
   Sheet,
   SheetContent,
@@ -11,7 +25,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "./sheet";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../primitives";
 import { useIsMobile } from "../../hooks/use-mobile";
 import { cn } from "../../lib/utils";
 import { SidebarIcon } from "@phosphor-icons/react";
@@ -73,7 +86,7 @@ function SidebarProvider({
   style,
   children,
   ...props
-}: React.ComponentProps<"div"> & {
+}: SafeComposedHostElementProps<"div"> & {
   defaultOpen?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -91,7 +104,9 @@ function SidebarProvider({
         _setOpen(openState);
       }
 
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+      writeBrowserCookie(
+        `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`,
+      );
     },
     [setOpenProp, open],
   );
@@ -109,8 +124,7 @@ function SidebarProvider({
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return subscribeBrowserWindowEvent("keydown", handleKeyDown);
   }, [toggleSidebar]);
 
   const state = open ? "expanded" : "collapsed";
@@ -142,7 +156,7 @@ function SidebarProvider({
           "group/sidebar-wrapper flex min-h-svh w-full has-data-[variant=inset]:bg-[color:var(--sidebar)]",
           className,
         )}
-        {...props}
+        {...sanitizeComposedHostProps(props)}
       >
         {children}
       </div>
@@ -158,7 +172,7 @@ function Sidebar({
   children,
   dir,
   ...props
-}: React.ComponentProps<"div"> & {
+}: SafeComposedHostElementProps<"div"> & {
   side?: "left" | "right";
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "icon" | "none";
@@ -173,7 +187,7 @@ function Sidebar({
           "flex h-full w-(--sidebar-width) flex-col bg-[color:var(--sidebar)] text-[color:var(--sidebar-foreground)]",
           className,
         )}
-        {...props}
+        {...sanitizeComposedHostProps(props)}
       >
         {children}
       </div>
@@ -236,7 +250,7 @@ function Sidebar({
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) border-[color:color-mix(in_oklab,var(--sidebar-border)_20%,transparent)] group-data-[side=left]:border-r group-data-[side=right]:border-l",
           className,
         )}
-        {...props}
+        {...sanitizeComposedHostProps(props)}
       >
         <div
           data-sidebar="sidebar"
@@ -277,9 +291,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
 
   return (
     <button
-      type="button"
       data-sidebar="rail"
-      data-slot="sidebar-rail"
       aria-label="Toggle Sidebar"
       tabIndex={-1}
       onClick={toggleSidebar}
@@ -293,7 +305,10 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
         "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
         className,
       )}
-      {...props}
+      {...sanitizeInteractionHostProps(props)}
+      type="button"
+      data-slot="sidebar-rail"
+      role={undefined}
     />
   );
 }
@@ -321,6 +336,11 @@ const sidebarMenuButtonVariants = cva(
   },
 );
 
+type SidebarMenuTooltipProps = Omit<
+  React.ComponentProps<typeof TooltipContent>,
+  "dangerouslySetInnerHTML"
+>;
+
 function SidebarMenuButton({
   render,
   isActive = false,
@@ -332,7 +352,7 @@ function SidebarMenuButton({
 }: useRender.ComponentProps<"button"> &
   React.ComponentProps<"button"> & {
     isActive?: boolean;
-    tooltip?: string | React.ComponentProps<typeof TooltipContent>;
+    tooltip?: string | SidebarMenuTooltipProps;
   } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const sidebar = useSidebar(true);
   const isMobile = sidebar?.isMobile ?? false;

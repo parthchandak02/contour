@@ -16,4 +16,7 @@ export {
 } from "./panel-icon-button";
 export { PanelSection } from "./panel-section";
 export type { PanelSectionProps } from "./panel-section";
-export { PanelContentSurface, PanelSurface } from "./panel-surface";
+export {
+  PanelContentSurface,
+  PanelSurface,
+} from "./panel-surface";

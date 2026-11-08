@@ -1,26 +1,26 @@
-import { useRef, useCallback } from "react";
-import { ToolcraftApp } from "@/toolcraft/runtime/react";
-import type { ToolcraftPanelActionHandler } from "@/toolcraft/runtime/react";
+import { ToolcraftApp, ToolcraftDefaultsAuthoringProvider } from "@/toolcraft/runtime/react";
 
-import { appSchema } from "../app/app-schema";
-import { ContourCanvas } from "../app/ContourCanvas";
+import { useAppDefaultsAuthoring } from "../toolcraft/app-defaults-authoring";
+import { appComposition } from "../app/app-composition";
 
 export function AppHome(): React.JSX.Element {
-  const clearRef = useRef<(() => void) | null>(null);
-
-  const handlePanelAction: ToolcraftPanelActionHandler = useCallback((context) => {
-    if (context.action.value === "clearCanvas" && clearRef.current) {
-      clearRef.current();
-    }
-  }, []);
-
+  const authoring = useAppDefaultsAuthoring();
   return (
-    <ToolcraftApp
-      className="h-dvh min-h-dvh"
-      schema={appSchema}
-      canvasContent={<ContourCanvas clearRef={clearRef} />}
-      onPanelAction={handlePanelAction}
-      renderDefaultCanvasMedia={false}
-    />
+    <ToolcraftDefaultsAuthoringProvider value={authoring}>
+      <ToolcraftApp
+        canvasContent={appComposition.canvasContent}
+        className="h-dvh min-h-dvh"
+        controlRenderers={appComposition.controlRenderers}
+        exportRenderer={appComposition.exportRenderer}
+        infiniteCanvasContent={appComposition.infiniteCanvasContent}
+        modelPresentation={appComposition.modelPresentation}
+        onPanelAction={appComposition.onPanelAction}
+        renderDefaultCanvasMedia={appComposition.renderDefaultCanvasMedia}
+        rendererPipelineRegistration={appComposition.rendererPipelineRegistration}
+        sceneBoundsProvider={appComposition.sceneBoundsProvider}
+        schema={appComposition.schema}
+        svgExportRenderer={appComposition.svgExportRenderer}
+      />
+    </ToolcraftDefaultsAuthoringProvider>
   );
 }

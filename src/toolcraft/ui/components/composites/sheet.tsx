@@ -1,15 +1,16 @@
 "use client";
 
+import { sanitizeComposedHostProps, type SafeComposedHostElementProps } from "../primitives/sanitize-composed-host-props";
 import * as React from "react";
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
 
 import {
+  Button,
   PortalLayerContainerProvider,
   type PortalLayerContainer,
   usePortalLayerContainer,
 } from "../primitives";
 import { cn } from "../../lib/utils";
-import { Button } from "../primitives";
 import { XIcon } from "@phosphor-icons/react";
 
 function Sheet({ ...props }: SheetPrimitive.Root.Props) {
@@ -98,22 +99,22 @@ function SheetContent({
   );
 }
 
-function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
+function SheetHeader({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="sheet-header"
       className={cn("flex flex-col gap-1.5 p-6", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
+function SheetFooter({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="sheet-footer"
       className={cn("mt-auto flex flex-col gap-2 p-6", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }

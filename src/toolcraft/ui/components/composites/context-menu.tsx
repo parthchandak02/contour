@@ -1,8 +1,11 @@
+import { sanitizeComposedHostProps, type SafeComposedHostElementProps } from "../primitives/sanitize-composed-host-props";
 import * as React from "react";
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu";
 
 import { cn } from "../../lib/utils";
-import { PrimitiveArrowIcon } from "../primitives";
+import {
+  PrimitiveArrowIcon,
+} from "../primitives";
 import { CheckIcon } from "@phosphor-icons/react";
 
 function ContextMenu({ ...props }: ContextMenuPrimitive.Root.Props) {
@@ -215,7 +218,7 @@ function ContextMenuSeparator({ className, ...props }: ContextMenuPrimitive.Sepa
   );
 }
 
-function ContextMenuShortcut({ className, ...props }: React.ComponentProps<"span">) {
+function ContextMenuShortcut({ className, ...props }: SafeComposedHostElementProps<"span">) {
   return (
     <span
       data-slot="context-menu-shortcut"
@@ -223,7 +226,7 @@ function ContextMenuShortcut({ className, ...props }: React.ComponentProps<"span
         "ml-auto text-[0.625rem] tracking-widest text-[color:color-mix(in_oklab,var(--foreground)_60%,transparent)] group-focus/context-menu-item:text-[color:var(--accent-foreground)]",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }

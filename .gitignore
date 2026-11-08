@@ -4,16 +4,21 @@ node_modules
 # Build output
 dist
 dist-ssr
+build
+out
 .vite
 .turbo
 .output
 .next
+.vercel
 *.tsbuildinfo
 
 # Test output
 coverage
 test-results
 playwright-report
+.playwright-mcp
+.playwright-*
 
 # Local environment
 .env
@@ -35,3 +40,8 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example

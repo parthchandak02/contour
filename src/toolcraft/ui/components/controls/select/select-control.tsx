@@ -18,10 +18,13 @@ import type { ControlOption } from "../control-types";
 import { useMeasuredElementWidth } from "../use-measured-element-width";
 
 export type SelectControlInput = {
+  disabled?: boolean;
   name: string;
   onValueChange?: (value: string) => void;
   options: readonly ControlOption[];
   showLabel?: boolean;
+  /** Display an unlisted current value without adding a selectable option. */
+  unlistedValueLabel?: string;
   value: string;
 };
 
@@ -38,9 +41,7 @@ type SelectControlGroupProps = {
   layout?: never;
 };
 
-export type SelectControlProps =
-  | SelectControlSingleProps
-  | SelectControlGroupProps;
+export type SelectControlProps = SelectControlSingleProps | SelectControlGroupProps;
 
 const WIDE_SELECT_OPTION_LABEL_LENGTH = 32;
 
@@ -48,9 +49,7 @@ function hasWideSelectContent(options: readonly ControlOption[]): boolean {
   return options.some((option) => option.label.length >= WIDE_SELECT_OPTION_LABEL_LENGTH);
 }
 
-function isSelectControlGroupProps(
-  props: SelectControlProps,
-): props is SelectControlGroupProps {
+function isSelectControlGroupProps(props: SelectControlProps): props is SelectControlGroupProps {
   return Array.isArray((props as SelectControlGroupProps).inputs);
 }
 
@@ -71,6 +70,7 @@ export function StaticSelect({
   scrollFadeValue = true,
   size = "default",
   triggerClassName,
+  unlistedValueLabel,
   value,
 }: {
   ariaLabel?: string;
@@ -81,23 +81,27 @@ export function StaticSelect({
   scrollFadeValue?: boolean;
   size?: StaticSelectSize;
   triggerClassName?: string;
+  unlistedValueLabel?: string;
   value: string;
 }): React.JSX.Element {
-  const selected = options.find((option) => option.value === value) ?? options[0];
+  const selected = options.find((option) => option.value === value) ??
+    (unlistedValueLabel === undefined ? options[0] : undefined);
+  const label = selected?.label ?? unlistedValueLabel ?? "";
   const shouldConstrainPopup = hasWideSelectContent(options);
 
   return (
     <Select
+      disabled={disabled}
       items={options.map((option) => ({ label: option.label, value: option.value }))}
-      onValueChange={(nextValue) => onValueChange?.(String(nextValue))}
-      value={selected?.value}
+      onValueChange={(nextValue) => { if (nextValue !== null) onValueChange?.(String(nextValue)); }}
+      value={selected?.value ?? null}
     >
       <SelectTrigger
         aria-label={ariaLabel}
         className={cn("w-full justify-between", triggerClassName)}
         disabled={disabled}
         size={size}
-        title={selected?.label}
+        title={label}
       >
         <SelectValue>
           {() =>
@@ -107,15 +111,15 @@ export function StaticSelect({
                 containerClassName="min-w-0 flex-1"
                 preset="compact"
                 side="right"
-                watch={[selected?.label]}
+                watch={[label]}
               >
-                <span className="block min-w-max whitespace-nowrap pr-2" title={selected?.label}>
-                  {selected?.label ?? ""}
+                <span className="block min-w-max whitespace-nowrap pr-2" title={label}>
+                  {label}
                 </span>
               </ScrollFade>
             ) : (
-              <span className="block min-w-0 flex-1 whitespace-nowrap pr-2" title={selected?.label}>
-                {selected?.label ?? ""}
+              <span className="block min-w-0 flex-1 whitespace-nowrap pr-2" title={label}>
+                {label}
               </span>
             )
           }
@@ -139,10 +143,12 @@ export function StaticSelect({
 }
 
 function SelectControlField({
+  disabled,
   name,
   onValueChange,
   options,
   showLabel = true,
+  unlistedValueLabel,
   value,
 }: SelectControlInput): React.JSX.Element {
   const fieldRef = React.useRef<HTMLDivElement>(null);
@@ -154,6 +160,7 @@ function SelectControlField({
   }, [value]);
 
   function updateValue(nextValue: string): void {
+    if (disabled) return;
     setCurrentValue(nextValue);
     onValueChange?.(nextValue);
   }
@@ -167,10 +174,12 @@ function SelectControlField({
       {showLabel ? <ControlFieldLabel>{name}</ControlFieldLabel> : null}
       <div className="min-w-0 w-full">
         <StaticSelect
+          disabled={disabled}
           ariaLabel={showLabel ? undefined : name}
           onValueChange={updateValue}
           options={options}
           popupMaxWidth={popupMaxWidth}
+          unlistedValueLabel={unlistedValueLabel}
           value={currentValue}
         />
       </div>
@@ -178,9 +187,7 @@ function SelectControlField({
   );
 }
 
-export function SelectControl(
-  props: SelectControlProps,
-): React.JSX.Element {
+export function SelectControl(props: SelectControlProps): React.JSX.Element {
   if (isSelectControlGroupProps(props)) {
     const inputsPerRow = getInputsPerRow(props.inputsPerRow);
 
@@ -193,10 +200,7 @@ export function SelectControl(
         }}
       >
         {props.inputs.map((input, index) => (
-          <SelectControlField
-            key={`${input.name}-${index}`}
-            {...input}
-          />
+          <SelectControlField key={`${input.name}-${index}`} {...input} />
         ))}
       </div>
     );

@@ -1,5 +1,8 @@
+import { sanitizeComposedHostProps, type SafeComposedHostElementProps } from "../primitives/sanitize-composed-host-props";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../lib/utils";
+import {
+} from "../primitives";
 
 const emptyVariants = cva(
   "flex w-full min-w-0 flex-1 flex-col items-center justify-center gap-4 rounded-xl border-dashed p-6 text-center text-balance",
@@ -20,16 +23,16 @@ function Empty({
   className,
   variant = "default",
   ...props
-}: React.ComponentProps<"div"> & VariantProps<typeof emptyVariants>) {
-  return <div data-slot="empty" className={cn(emptyVariants({ variant }), className)} {...props} />;
+}: SafeComposedHostElementProps<"div"> & VariantProps<typeof emptyVariants>) {
+  return <div data-slot="empty" className={cn(emptyVariants({ variant }), className)} {...sanitizeComposedHostProps(props)} />;
 }
 
-function EmptyHeader({ className, ...props }: React.ComponentProps<"div">) {
+function EmptyHeader({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="empty-header"
       className={cn("flex max-w-sm flex-col items-center gap-1", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
@@ -53,28 +56,28 @@ function EmptyMedia({
   className,
   variant = "default",
   ...props
-}: React.ComponentProps<"div"> & VariantProps<typeof emptyMediaVariants>) {
+}: SafeComposedHostElementProps<"div"> & VariantProps<typeof emptyMediaVariants>) {
   return (
     <div
       data-slot="empty-icon"
       data-variant={variant}
       className={cn(emptyMediaVariants({ variant, className }))}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function EmptyTitle({ className, ...props }: React.ComponentProps<"div">) {
+function EmptyTitle({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="empty-title"
       className={cn("text-sm font-medium tracking-tight", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function EmptyDescription({ className, ...props }: React.ComponentProps<"p">) {
+function EmptyDescription({ className, ...props }: SafeComposedHostElementProps<"p">) {
   return (
     <p
       data-slot="empty-description"
@@ -82,12 +85,12 @@ function EmptyDescription({ className, ...props }: React.ComponentProps<"p">) {
         "text-xs/relaxed text-[color:var(--muted-foreground)] [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-[color:var(--primary)]",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function EmptyContent({ className, ...props }: React.ComponentProps<"div">) {
+function EmptyContent({ className, ...props }: SafeComposedHostElementProps<"div">) {
   return (
     <div
       data-slot="empty-content"
@@ -95,7 +98,7 @@ function EmptyContent({ className, ...props }: React.ComponentProps<"div">) {
         "flex w-full max-w-sm min-w-0 flex-col items-center gap-2 text-xs/relaxed text-balance",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }

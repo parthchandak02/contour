@@ -1,10 +1,15 @@
 "use client";
 
 export { FileDropControl } from "./file-drop-control";
-export type { FileDropControlProps } from "./file-drop-control";
 export type {
   FileDropAssetKind,
+  FileDropCollectionActions,
+  FileDropControlProps,
+  FileDropImageSize,
   FileDropImageTransform,
   FileDropImageTransformOperation,
+  FileDropPresentation,
+  FileDropPresentationAction,
+  FileDropPresentationItem,
   FileDropPreview,
-} from "./file-drop-control";
+} from "./file-drop-types";

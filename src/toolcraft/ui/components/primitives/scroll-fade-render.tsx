@@ -3,7 +3,11 @@
 import { useCallback } from "react";
 import type { Ref } from "react";
 import { cn } from "../../lib/utils";
-import type { ScrollFadeSide, ScrollFadeViewportStyle } from "./scroll-fade-types";
+import type {
+  ScrollFadeScrollBoundaryBehavior,
+  ScrollFadeSide,
+  ScrollFadeViewportStyle,
+} from "./scroll-fade-types";
 
 export function useScrollFadeViewportAttachment({
   setViewportElement,
@@ -36,6 +40,7 @@ export function ScrollFadeViewport({
   className,
   isHorizontal,
   props,
+  scrollBoundaryBehavior,
   side,
   viewportStyle,
   viewportVisible,
@@ -48,6 +53,7 @@ export function ScrollFadeViewport({
   props: Omit<React.ComponentProps<"div">, "children" | "className" | "style" | "ref"> & {
     "data-slot"?: string;
   };
+  scrollBoundaryBehavior: ScrollFadeScrollBoundaryBehavior;
   side: ScrollFadeSide;
   viewportStyle: ScrollFadeViewportStyle;
   viewportVisible: boolean;
@@ -59,9 +65,12 @@ export function ScrollFadeViewport({
       {...viewportProps}
       className={cn(
         isHorizontal ? "overflow-x-auto overflow-y-hidden" : "overflow-x-hidden overflow-y-auto",
-        "overscroll-contain",
+        scrollBoundaryBehavior === "chain"
+          ? "overscroll-auto"
+          : "overscroll-contain",
         className,
       )}
+      data-scroll-boundary-behavior={scrollBoundaryBehavior}
       data-side={side}
       data-slot={dataSlot ?? "scroll-fade-viewport"}
       data-scroll-fade-viewport=""

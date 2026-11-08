@@ -1,73 +1,60 @@
 <div align="center">
 
-<h1>contour</h1>
+<h1>Contour</h1>
 
-<p><b>Draw topographic contour lines, shaped by weather.</b></p>
+<p><b>A topographic map of any mountain, from real elevation data.</b></p>
 
-<p><i>Every stroke you draw is lifted, tinted and roughened by the current temperature and wind in Singapore.</i></p>
+<p><i>Pick a landmark or any point on Earth, an area and a contour interval, and get a printable contour map with shaded relief.</i></p>
 
 <h6>
 
-![Data](https://img.shields.io/badge/data-Open--Meteo-4caf50?style=flat-square)
-![Canvas 2D](https://img.shields.io/badge/Canvas-2D-111111?style=flat-square&logo=html5&logoColor=white)
-![React](https://img.shields.io/badge/React%2019-Toolcraft-111111?style=flat-square&logo=react&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-8-ffb347?style=flat-square&logo=vite&logoColor=white)
-![Status](https://img.shields.io/badge/creative%20daily-experiment%2C%20site%20offline-555555?style=flat-square)
+![Data](https://img.shields.io/badge/data-AWS%20Terrain%20Tiles-8a5a36?style=flat-square)
+![Canvas 2D](https://img.shields.io/badge/Canvas-2D-111111?style=flat-square)
+![Toolcraft](https://img.shields.io/badge/Toolcraft-0.0.26-111111?style=flat-square)
+![Live](https://img.shields.io/badge/live-contour--topo.pages.dev-b7c8a0?style=flat-square)
 
 </h6>
 
+<a href="https://contour-topo.pages.dev"><b>Live app</b></a> ·
 <a href="#how-it-works"><b>How it works</b></a> ·
-<a href="#controls"><b>Controls</b></a> ·
 <a href="#run-it"><b>Run it</b></a>
 
 <br><br>
 
-<img src="docs/assets/readme/hero.jpg" width="100%" alt="Two hand-drawn sets of nested green contour lines on a near-black canvas, with 30.6° peak elevation and 1.3 km/h wind in gold at the top left and the Brush, Terrain and Palette control panel on the right">
+<a href="https://contour-topo.pages.dev"><img src="docs/assets/readme/hero.jpg" width="100%" alt="A paper-coloured poster of the Matterhorn: on the left the title in italic serif, region and coordinates, rows for highest and lowest ground in view, relief, contour interval and area, an elevation legend of six swatches, a scale bar and a north arrow; on the right a contour map with green valleys rising through tan and brown to a pale summit, shaded from the north-west, with the summit marked at 4,352 m"></a>
 
-<sub>Local build, 22 October 2026. Real Singapore weather at capture time; the strokes were drawn by a script.</sub>
+<sub>The default map: the Matterhorn, 50 m contours, tinted.</sub>
 
 </div>
 
 <br>
 
-contour is a small drawing instrument. You sketch freehand lines on a dark forest-green canvas
-and they render as glowing topographic contours. What the lines look like is not up to you
-alone: the page reads the current weather for Singapore (1.35° N, 103.82° E) from the free
-[Open-Meteo](https://open-meteo.com) forecast API every 60 seconds, and every line on the
-canvas reacts to it. A hot afternoon lifts and brightens the map; a windy one makes it ripple.
+Contour draws a real contour map as a poster. The map shows contour lines with every fifth line
+bolder as an index line, laid over a hypsometric tint (green valleys to pale summits) and a hillshade
+lit from the north-west. The left column names the place and lists the highest and lowest ground in
+view, the relief, the contour interval and the area covered, with an elevation legend, a scale bar
+and a north arrow.
+
+Pick one of eight landmarks (the Matterhorn, Mount Fuji, Half Dome, Mount Rainier, Kilimanjaro,
+Everest, Table Mountain, the Grand Canyon), each with an area and interval that suit it, or drag
+Latitude and Longitude anywhere between 80°S and 80°N. Choose the Area (Wide to Close), the
+Contour interval (10 to 500 m) and a Style: Tinted, Relief (shading only) or Lines. The background
+can be changed (dark colours flip the ink) or left out, and the map exports as PNG or JPG at 2K, 4K
+or 8K.
 
 ## How it works
 
-| Weather (Open-Meteo `current_weather`) | Drives |
-|---|---|
-| `temperature` | How far every line is lifted: 20 to 35 °C maps to -40 to +40 px, times the Elevation scale slider |
-| `temperature` | Line colour: deep green, mid green or neon green as the lift grows, with a soft glow above 15 px |
-| `windspeed` | Wobble along each line: amplitude is roughness × wind speed × 0.15 |
-| `windspeed` | Above 5 km/h, two faint echo lines are drawn below each stroke, one and two "contour spacings" apart |
+Elevation comes from [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) (Mapzen's
+Terrarium PNG tiles, free and keyless). Contour fetches the 6 to 9 tiles around the centre, decodes
+each pixel's height, stitches a 512 × 384 grid, smooths it once and traces contour lines with
+marching squares. Each map cell averages the ground under it (about 27 m at the Medium area), so
+sharp summits read a little low: the Matterhorn shows 4,352 m against its surveyed 4,478 m. If the
+tiles cannot be reached, a clearly labelled sample terrain is shown instead.
 
-The big gold number top-left is the live temperature, labelled as peak elevation. The stamp at
-the bottom says `Open-Meteo Singapore` with the reading and how long ago it arrived; if the
-request fails it switches to `(fallback)` and uses 28 °C and 10 km/h.
-
-Tap close to a line (within 30 px) and a panel shows its point count, how long ago it was drawn
-and the weather that is shaping it. It fades after three seconds. The canvas keeps the last 200
-strokes.
-
-## Controls
-
-| Section | Control | Effect |
-|---|---|---|
-| Brush | Stroke width | 1 to 8 px |
-| Brush | Contour spacing | Gap between the wind echo lines, 8 to 24 px |
-| Terrain | Elevation scale | Multiplies the temperature lift, 0.3 to 2 |
-| Terrain | Roughness | Multiplies the wind wobble, 0 to 1 |
-| Terrain | Wind affects terrain | Turns the echo lines on or off |
-| Palette | Color scheme | Midnight (green), Ember (orange) or Void (grey) |
-| | Clear all contours | Wipes the canvas |
-
-The control panel, canvas sizing and settings export come from Pixel Point's Toolcraft app
-template, which this project was generated from. The drawing surface is sized to the browser
-window on load and on every resize, rather than the template's fixed 1920 × 1080 output.
+The map is drawn with Canvas 2D in a Web Worker at the exact zoomed backing resolution, and the same
+drawing function renders the exported image. The editor shell, panel, settings import/export, saved
+workspace and image export come from [Toolcraft](https://github.com/pixel-point/toolcraft) (Pixel
+Point, MIT).
 
 ## Run it
 
@@ -75,33 +62,31 @@ window on load and on every resize, rather than the template's fixed 1920 × 108
 git clone https://github.com/parthchandak02/contour.git
 cd contour
 npm install
-npm run dev      # Vite dev server on a free port
-npm run build    # type-check, then a static site in dist/
+npm run dev              # local editor; needs Node 22+
+npm test                 # unit tests plus Toolcraft's contract checks
+npm run verify:delivery  # full functional acceptance in a real browser
 ```
 
-There is no hosted copy: the old Cloudflare Pages site has been taken down, so for now it runs
-locally only.
+The live version is a static build (`npm run build`, then `dist/`) on Cloudflare Pages.
 
 <details>
-<summary><b>Project layout and licence</b></summary>
+<summary><b>Project layout</b></summary>
 
 ```
-src/app/ContourCanvas.tsx  The piece: weather polling, drawing, rendering, overlays
-src/app/app-schema.ts      Control panel definition (sliders, toggle, palette, clear)
-src/routes/index.tsx       Mounts the canvas inside ToolcraftApp
-src/toolcraft/             Toolcraft runtime and UI components (Pixel Point)
-brief.md                   The original creative brief: concept, palette, encoding
-e2e/                       Playwright browser tests from the template
+src/contour/terrain.ts          Tile maths, Terrarium decoding, stitching, cache, offline sample
+src/contour/contour-draw.ts     Contours, relief and the whole poster; preview and export share it
+src/contour/ContourCanvas.tsx   The live canvas: worker raster at the exact backing size
+src/contour/contour-controls.ts Place and Map controls; landmark shortcuts
+src/app/app-schema.ts           Toolcraft schema: sections, canvas, image export
+src/app/app-acceptance-data.ts  What every control must visibly do (checked in a real browser)
+e2e/product-contour-*.spec.ts   Browser acceptance tests (tiles stubbed with generated PNGs)
+src/toolcraft/                  Vendored Toolcraft runtime (do not edit)
 ```
-
-This repository has no open-source licence. The Toolcraft code it contains is covered by the
-Toolcraft Designer License in `LICENSE.md` (see `NOTICE.md`), which restricts redistribution, and
-no separate licence is granted for the rest of the project.
 
 </details>
 
 <br>
 
 <div align="center">
-<sub>Built with React, Canvas 2D and Vite on the Toolcraft template. Weather from Open-Meteo.</sub>
+<sub>Built with Toolcraft, React and Canvas 2D. Elevation from AWS Terrain Tiles (Mapzen).</sub>
 </div>

@@ -5,6 +5,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../../primitives/popover";
+import {
+  blurActiveBrowserElement,
+  requestBrowserAnimationFrame,
+  setBrowserTimeout,
+} from "../../primitives/browser-transport";
 import { StyleGuideColorPicker } from "./style-guide-color-picker";
 import { cn } from "../../../lib/utils";
 import { useCallback, useRef, useState } from "react";
@@ -39,14 +44,12 @@ export function ColorPickerPopover({
   }, [onCommit]);
   const clearTriggerFocus = useCallback(() => {
     const blurTrigger = () => {
-      if (document.activeElement === triggerRef.current) {
-        triggerRef.current?.blur();
-      }
+      blurActiveBrowserElement(triggerRef.current);
     };
 
     blurTrigger();
-    window.requestAnimationFrame(blurTrigger);
-    window.setTimeout(blurTrigger, 0);
+    requestBrowserAnimationFrame(blurTrigger);
+    setBrowserTimeout(blurTrigger, 0);
   }, []);
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {

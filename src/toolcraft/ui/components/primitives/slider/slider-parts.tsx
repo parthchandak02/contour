@@ -4,6 +4,7 @@ import * as React from "react";
 import { Slider as SliderPrimitive } from "@base-ui/react/slider";
 
 import { cn } from "../../../lib/utils";
+import { subscribeBrowserWindowEvent } from "../browser-transport";
 import type { SliderThumbDoubleClickHandler } from "./slider-reset";
 
 type SliderOrientation = "horizontal" | "vertical";
@@ -58,14 +59,23 @@ function useActiveSliderThumbDrag(disabled: boolean): {
       return undefined;
     }
 
-    window.addEventListener("pointerup", clearActiveDragIndex);
-    window.addEventListener("pointercancel", clearActiveDragIndex);
-    window.addEventListener("blur", clearActiveDragIndex);
+    const unsubscribePointerUp = subscribeBrowserWindowEvent(
+      "pointerup",
+      clearActiveDragIndex,
+    );
+    const unsubscribePointerCancel = subscribeBrowserWindowEvent(
+      "pointercancel",
+      clearActiveDragIndex,
+    );
+    const unsubscribeBlur = subscribeBrowserWindowEvent(
+      "blur",
+      clearActiveDragIndex,
+    );
 
     return () => {
-      window.removeEventListener("pointerup", clearActiveDragIndex);
-      window.removeEventListener("pointercancel", clearActiveDragIndex);
-      window.removeEventListener("blur", clearActiveDragIndex);
+      unsubscribePointerUp();
+      unsubscribePointerCancel();
+      unsubscribeBlur();
     };
   }, [activeDragIndex, clearActiveDragIndex]);
 

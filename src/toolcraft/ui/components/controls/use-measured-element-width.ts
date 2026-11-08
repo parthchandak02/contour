@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import { observeBrowserResize } from "../primitives/browser-transport";
+
 function getMeasuredWidth(element: HTMLElement): number | undefined {
   const width = Math.round(element.getBoundingClientRect().width);
 
@@ -26,16 +28,7 @@ export function useMeasuredElementWidth(
 
     updateWidth();
 
-    if (typeof ResizeObserver === "undefined") {
-      return undefined;
-    }
-
-    const observer = new ResizeObserver(updateWidth);
-    observer.observe(element);
-
-    return () => {
-      observer.disconnect();
-    };
+    return observeBrowserResize([element], updateWidth);
   }, [ref]);
 
   return width;

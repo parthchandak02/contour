@@ -3,6 +3,11 @@ import {
   getFontPickerFontById,
   type FontPickerFontCatalogEntry,
 } from "./font-catalog";
+import {
+  isBrowserFontFaceLoaded,
+  loadBrowserFontFace,
+  loadBrowserFontStylesheet,
+} from "../../primitives/browser-transport";
 
 export type FontPickerPreviewLoadPriority = "high" | "normal";
 
@@ -67,113 +72,26 @@ function buildFontFaceKey(
   return `${entry.id}:${weight}`;
 }
 
-function escapeSelectorValue(value: string): string {
-  return typeof CSS !== "undefined" && typeof CSS.escape === "function"
-    ? CSS.escape(value)
-    : value.replace(/["\\]/g, "\\$&");
-}
-
 function ensurePreviewFontStylesheet(href: string): Promise<void> {
-  if (typeof document === "undefined") {
-    return Promise.resolve();
-  }
-
   if (loadedHrefSet.has(href)) {
     return Promise.resolve();
   }
 
-  const existing = document.head.querySelector<HTMLLinkElement>(
-    `link[data-toolcraft-font-href="${escapeSelectorValue(href)}"]`,
-  );
+  const pending = pendingHrefMap.get(href);
+  if (pending) return pending;
 
-  if (existing) {
-    if (existing.dataset.loaded === "true") {
-      loadedHrefSet.add(href);
-      return Promise.resolve();
-    }
-
-    const pending = pendingHrefMap.get(href);
-    if (pending) {
-      return pending;
-    }
-
-    const nextPending = new Promise<void>((resolve) => {
-      existing.addEventListener(
-        "load",
-        () => {
-          existing.dataset.loaded = "true";
-          loadedHrefSet.add(href);
-          pendingHrefMap.delete(href);
-          resolve();
-        },
-        { once: true },
-      );
-      existing.addEventListener(
-        "error",
-        () => {
-          pendingHrefMap.delete(href);
-          resolve();
-        },
-        { once: true },
-      );
+  const nextPending = loadBrowserFontStylesheet(href)
+    .then((loaded) => {
+      if (loaded) loadedHrefSet.add(href);
+    })
+    .finally(() => {
+      pendingHrefMap.delete(href);
     });
-
-    pendingHrefMap.set(href, nextPending);
-    return nextPending;
-  }
-
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = href;
-  link.crossOrigin = "anonymous";
-  link.dataset.toolcraftFontHref = href;
-
-  const pending = new Promise<void>((resolve) => {
-    link.addEventListener(
-      "load",
-      () => {
-        link.dataset.loaded = "true";
-        loadedHrefSet.add(href);
-        pendingHrefMap.delete(href);
-        resolve();
-      },
-      { once: true },
-    );
-    link.addEventListener(
-      "error",
-      () => {
-        pendingHrefMap.delete(href);
-        resolve();
-      },
-      { once: true },
-    );
-  });
-
-  pendingHrefMap.set(href, pending);
-  document.head.appendChild(link);
-
-  return pending;
+  pendingHrefMap.set(href, nextPending);
+  return nextPending;
 }
 
 function ensurePreviewFontFaces(entry: FontPickerFontCatalogEntry): Promise<void> {
-  if (typeof document === "undefined" || !("fonts" in document)) {
-    return Promise.resolve();
-  }
-
-  const fontFaceSet = document.fonts;
-  const load =
-    typeof fontFaceSet.load === "function"
-      ? fontFaceSet.load.bind(fontFaceSet)
-      : null;
-  const check =
-    typeof fontFaceSet.check === "function"
-      ? fontFaceSet.check.bind(fontFaceSet)
-      : null;
-
-  if (!load) {
-    return Promise.resolve();
-  }
-
   return Promise.all(
     resolvePreviewWeights(entry).map((weight) => {
       const key = buildFontFaceKey(entry, weight);
@@ -183,7 +101,7 @@ function ensurePreviewFontFaces(entry: FontPickerFontCatalogEntry): Promise<void
       }
 
       const descriptor = buildFontFaceDescriptor(entry, weight);
-      if (check?.(descriptor)) {
+      if (isBrowserFontFaceLoaded(descriptor)) {
         loadedFontFaceSet.add(key);
         return Promise.resolve();
       }
@@ -193,9 +111,9 @@ function ensurePreviewFontFaces(entry: FontPickerFontCatalogEntry): Promise<void
         return pending;
       }
 
-      const nextPending = load(descriptor)
-        .then(() => {
-          loadedFontFaceSet.add(key);
+      const nextPending = loadBrowserFontFace(descriptor)
+        .then((loaded) => {
+          if (loaded) loadedFontFaceSet.add(key);
         })
         .catch(() => undefined)
         .finally(() => {
@@ -227,20 +145,10 @@ export function isFontPickerPreviewLoaded(
     return false;
   }
 
-  if (typeof document === "undefined" || !("fonts" in document)) {
-    return true;
-  }
-
-  const fontFaceSet = document.fonts;
-  const check =
-    typeof fontFaceSet.check === "function"
-      ? fontFaceSet.check.bind(fontFaceSet)
-      : null;
-
   return resolvePreviewWeights(fontEntry).every((weight) => {
     const key = buildFontFaceKey(fontEntry, weight);
     const descriptor = buildFontFaceDescriptor(fontEntry, weight);
-    return loadedFontFaceSet.has(key) || check?.(descriptor) === true;
+    return loadedFontFaceSet.has(key) || isBrowserFontFaceLoaded(descriptor);
   });
 }
 

@@ -2,27 +2,75 @@
 
 import * as React from "react";
 
-import { ScrollFade } from "../primitives";
 import { cn } from "../../lib/utils";
+import { ScrollFade } from "../primitives";
+import {
+  observeBrowserResize,
+  subscribeBrowserWindowEvent,
+} from "../primitives/browser-transport";
+import {
+  sanitizeComposedHostProps,
+  sanitizeInteractionHostProps,
+  type SafeComposedHostElementProps,
+} from "../primitives/sanitize-composed-host-props";
 
 const panelDividerClassName =
   "border-t border-[color:color-mix(in_oklab,var(--border)_8%,transparent)]";
 const panelContentScrollFadeHeight = 44;
 const panelContentViewportClassName =
   "flex min-h-0 flex-col overflow-x-hidden overflow-y-auto overscroll-contain";
+const panelSurfaceClassName =
+  "floating-popup-surface toolcraft-panel-surface isolate border text-[color:var(--popover-foreground)] supports-backdrop-filter:backdrop-blur-2xl supports-backdrop-filter:backdrop-saturate-150";
 
 export const PanelSurface = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
+  SafeComposedHostElementProps<"div">
 >(function PanelSurface({ children, className, ...props }, ref) {
   return (
     <div
-      {...props}
+      {...sanitizeComposedHostProps(props)}
       ref={ref}
-      className={cn(
-        "floating-popup-surface toolcraft-panel-surface isolate border text-[color:var(--popover-foreground)] supports-backdrop-filter:backdrop-blur-2xl supports-backdrop-filter:backdrop-saturate-150",
-        className,
-      )}
+      className={cn(panelSurfaceClassName, className)}
+    >
+      {children}
+    </div>
+  );
+});
+
+export type PanelHoverSurfaceProps = SafeComposedHostElementProps<"div"> &
+  Pick<React.ComponentProps<"div">, "onPointerEnter" | "onPointerLeave">;
+
+export const PanelHoverSurface = React.forwardRef<
+  HTMLDivElement,
+  PanelHoverSurfaceProps
+>(function PanelHoverSurface({ children, className, ...props }, ref) {
+  return (
+    <div
+      {...sanitizeInteractionHostProps(props)}
+      data-slot="panel-interaction-surface"
+      ref={ref}
+      className={cn(panelSurfaceClassName, className)}
+      role={undefined}
+    >
+      {children}
+    </div>
+  );
+});
+
+type PanelCollapsibleBodySurfaceProps = SafeComposedHostElementProps<"div"> &
+  Pick<React.ComponentProps<"div">, "onTransitionEnd">;
+
+export const PanelCollapsibleBodySurface = React.forwardRef<
+  HTMLDivElement,
+  PanelCollapsibleBodySurfaceProps
+>(function PanelCollapsibleBodySurface({ children, className, ...props }, ref) {
+  return (
+    <div
+      {...sanitizeInteractionHostProps(props)}
+      className={className}
+      data-slot="panel-section-collapsible-body"
+      ref={ref}
+      role={undefined}
     >
       {children}
     </div>
@@ -31,7 +79,7 @@ export const PanelSurface = React.forwardRef<
 
 export const PanelContentSurface = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & {
+  SafeComposedHostElementProps<"div"> & {
     scrollFadeMode?: "always" | "overflow";
     stickyFooterActive?: boolean;
     stickyFooterProgress?: number | null;
@@ -89,30 +137,24 @@ export const PanelContentSurface = React.forwardRef<
     };
 
     updateOverflow();
-    window.addEventListener("resize", updateOverflow);
-
-    const resizeObserver =
-      typeof ResizeObserver === "undefined"
-        ? null
-        : new ResizeObserver(updateOverflow);
-
-    resizeObserver?.observe(viewportElement);
+    const unsubscribeResize = subscribeBrowserWindowEvent("resize", updateOverflow);
 
     const contentNode = viewportElement.firstElementChild;
-    if (contentNode) {
-      resizeObserver?.observe(contentNode);
-    }
+    const unsubscribeResizeObserver = observeBrowserResize(
+      contentNode ? [viewportElement, contentNode] : [viewportElement],
+      updateOverflow,
+    );
 
     return () => {
-      window.removeEventListener("resize", updateOverflow);
-      resizeObserver?.disconnect();
+      unsubscribeResize();
+      unsubscribeResizeObserver();
     };
   }, [scrollFadeMode, viewportElement]);
 
   if (scrollFadeMode === "overflow" && !hasOverflow) {
     const viewport = (
       <div
-        {...props}
+        {...sanitizeComposedHostProps(props)}
         className={cn(
           panelContentViewportClassName,
           hasStickyFooter ? "flex-1" : panelDividerClassName,
@@ -139,7 +181,7 @@ export const PanelContentSurface = React.forwardRef<
 
   const viewport = (
     <ScrollFade
-      {...props}
+      {...sanitizeComposedHostProps(props)}
       className={cn("flex min-h-0 flex-col", hasStickyFooter && "flex-1", className)}
       containerClassName={cn(
         "flex min-h-0 flex-col",

@@ -1,15 +1,16 @@
 "use client";
 
+import { sanitizeComposedHostProps, type SafeComposedHostElementProps } from "../primitives/sanitize-composed-host-props";
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 
-import { Button } from "../primitives";
 import {
+  Button,
   PortalLayerContainerProvider,
+  ScrollFade,
   type PortalLayerContainer,
   usePortalLayerContainer,
 } from "../primitives";
-import { ScrollFade } from "../primitives";
 import { cn } from "../../lib/utils";
 import { XIcon } from "@phosphor-icons/react";
 
@@ -148,7 +149,7 @@ function DialogContent({
   );
 }
 
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+function DialogHeader({ className, ...props }: SafeComposedHostElementProps<"div">) {
   const { sectioned, showCloseButton } = React.useContext(DialogLayoutContext);
 
   return (
@@ -160,19 +161,19 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
         showCloseButton && "pr-12",
         className,
       )}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
 
-function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
+function DialogBody({ className, ...props }: SafeComposedHostElementProps<"div">) {
   const { sectioned } = React.useContext(DialogLayoutContext);
 
   return (
     <div
       data-slot="dialog-body"
       className={cn("flex flex-col gap-4", sectioned && "px-4 pt-3 pb-6", className)}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     />
   );
 }
@@ -183,7 +184,7 @@ function DialogFooter({
   justify = "end",
   children,
   ...props
-}: React.ComponentProps<"div"> & {
+}: SafeComposedHostElementProps<"div"> & {
   justify?: "between" | "end" | "start";
   showCloseButton?: boolean;
 }) {
@@ -200,7 +201,7 @@ function DialogFooter({
         className,
       )}
       style={sectioned ? { borderColor: DIALOG_SECTION_BORDER_COLOR } : undefined}
-      {...props}
+      {...sanitizeComposedHostProps(props)}
     >
       {children}
       {showCloseButton && (

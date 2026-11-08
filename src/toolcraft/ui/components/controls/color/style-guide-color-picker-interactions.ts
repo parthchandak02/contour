@@ -11,8 +11,8 @@ import {
   getSurfaceHsvColor,
   type DragBounds,
   type ColorSurfacePosition,
-  type InteractionSource,
-} from "./style-guide-color-picker-logic";
+} from "./style-guide-color-picker-surface-geometry";
+import { type InteractionSource } from "./style-guide-color-picker-interaction-state";
 import { hsvToHex, normalizeHexColor, type HsvColor } from "../../../lib/style-guide-color-utils";
 import { type ColorSurfaceModel } from "./style-guide-color-picker-channel-utils";
 

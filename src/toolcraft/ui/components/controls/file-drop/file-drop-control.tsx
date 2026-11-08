@@ -1,413 +1,79 @@
 "use client";
 
+import { sanitizeInteractionHostProps } from "../../primitives/sanitize-composed-host-props";
 import * as React from "react";
 import {
-  closestCenter,
-  DndContext,
   KeyboardSensor,
   PointerSensor,
   type DragEndEvent,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import {
-  arrayMove,
-  rectSortingStrategy,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import {
-  CloudArrowUpIcon,
-  PaperclipIcon,
-  XIcon,
-} from "@phosphor-icons/react";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { cn } from "../../../lib/utils";
+import { ActionsControl } from "../actions/actions-control";
+import { Field } from "../../primitives";
+import { FileDropCollectionControl } from "./file-drop-collection-control";
+import { FileDropEmptyState } from "./file-drop-empty-state";
+import { FileDropFileList } from "./file-drop-file-list";
+import { FileDropFolderInput } from "./file-drop-folder-input";
+import { FileDropImageGrid } from "./file-drop-image-grid";
+import { FileDropPresentationMessages } from "./file-drop-presentation-messages";
 import {
-  ActionsControl,
-  type ActionControlOption,
-} from "../actions/actions-control";
-import { Button, Field } from "../../primitives";
+  createLegacyFileDropPresentation,
+  createFileDropActionModel,
+  createFileDropItemView,
+  createFileDropTargetHandlers,
+  getFileInputAccept,
+  getPresentationItemKey,
+  getPreviewKey,
+  imageTransformActions,
+  reorderFileDropPresentationItems,
+} from "./file-drop-presentation";
+import { FileDropSinglePreview } from "./file-drop-single-preview";
+import type {
+  FileDropAssetKind,
+  FileDropControlProps,
+  FileDropImageTransformOperation,
+  FileDropPresentation,
+  FileDropPresentationItem,
+  FileDropPreview,
+} from "./file-drop-types";
 
-export type FileDropAssetKind = "file" | "image";
-
-export type FileDropImageTransform = {
-  flipHorizontal?: boolean;
-  flipVertical?: boolean;
-  rotationDeg?: number;
-};
-
-export type FileDropImageTransformOperation =
-  | "flip-horizontal"
-  | "flip-vertical"
-  | "rotate-left"
-  | "rotate-right";
-
-export type FileDropPreview = {
-  alt?: string;
-  assetKind?: FileDropAssetKind;
-  fileName?: string;
-  id?: string;
-  size?: {
-    height: number;
-    width: number;
-  };
-  src: string;
-  transform?: FileDropImageTransform;
-};
-
-export type FileDropControlProps = {
-  accept: string;
-  assetKind?: FileDropAssetKind;
-  multiple?: boolean;
-  onClear?: () => void;
-  onFileSelect?: (file: File) => void;
-  onFilesSelect?: (files: File[]) => void;
-  onPreviewRemove?: (preview: FileDropPreview, index: number) => void;
-  onPreviewReorder?: (orderedPreviews: FileDropPreview[]) => void;
-  onPreviewTransform?: (
-    preview: FileDropPreview,
-    operation: FileDropImageTransformOperation,
-  ) => void;
-  preview?: FileDropPreview;
-  previews?: readonly FileDropPreview[];
-};
-
-const singleImagePreviewMaxHeight = 196;
-
-function isDragLeavingCurrentTarget(event: React.DragEvent<HTMLElement>): boolean {
-  const nextTarget = event.relatedTarget;
-
-  return !(nextTarget instanceof Node && event.currentTarget.contains(nextTarget));
-}
-
-function getFileInputAccept(accept: string): string {
-  return accept
-    .split(",")
-    .map((part) => part.trim().toLowerCase())
-    .flatMap((part) => {
-      switch (part) {
-        case "gif":
-          return [".gif", "image/gif"];
-        case "heic":
-          return [".heic", "image/heic"];
-        case "heif":
-          return [".heif", "image/heif"];
-        case "jpg":
-        case "jpeg":
-          return [".jpg", ".jpeg", "image/jpeg"];
-        case "png":
-          return [".png", "image/png"];
-        case "svg":
-          return [".svg", "image/svg+xml"];
-        case "tif":
-        case "tiff":
-          return [".tif", ".tiff", "image/tiff"];
-        case "webp":
-          return [".webp", "image/webp"];
-        default:
-          return part.startsWith(".") || part.includes("/") ? [part] : [];
-      }
-    })
-    .join(",");
-}
-
-function normalizeImageRotation(rotationDeg: number | undefined): 0 | 90 | 180 | 270 {
-  const normalized = ((Math.round((rotationDeg ?? 0) / 90) * 90) % 360 + 360) % 360;
-
-  return normalized === 90 || normalized === 180 || normalized === 270 ? normalized : 0;
-}
-
-function getImageTransformStyle(
-  transform: FileDropImageTransform | undefined,
-  options: { center?: boolean; includeRotation?: boolean } = {},
-): React.CSSProperties {
-  const rotationDeg = normalizeImageRotation(transform?.rotationDeg);
-  const scaleX = transform?.flipHorizontal ? -1 : 1;
-  const scaleY = transform?.flipVertical ? -1 : 1;
-  const transformSteps: string[] = [];
-
-  if (options.center) {
-    transformSteps.push("translate(-50%, -50%)");
-  }
-
-  if (options.includeRotation !== false && rotationDeg !== 0) {
-    transformSteps.push(`rotate(${rotationDeg}deg)`);
-  }
-
-  if (scaleX !== 1 || scaleY !== 1) {
-    transformSteps.push(`scale(${scaleX}, ${scaleY})`);
-  }
-
-  if (transformSteps.length === 0) {
-    return {};
-  }
-
-  return {
-    transform: transformSteps.join(" "),
-  };
-}
-
-function getPreviewFrameStyle(
-  size: FileDropPreview["size"],
-): React.CSSProperties {
-  if (!size || size.height <= 0 || size.width <= 0) {
-    return { width: "100%" };
-  }
-
-  return {
-    aspectRatio: `${size.width} / ${size.height}`,
-    maxHeight: `${singleImagePreviewMaxHeight}px`,
-    width: "100%",
-  };
-}
-
-function isPreviewQuarterTurn(transform?: FileDropImageTransform): boolean {
-  const rotationDeg = normalizeImageRotation(transform?.rotationDeg);
-
-  return rotationDeg === 90 || rotationDeg === 270;
-}
-
-function getPreviewImageStyle(
-  size: FileDropPreview["size"],
-  transform?: FileDropImageTransform,
-): React.CSSProperties {
-  const rotationDeg = normalizeImageRotation(transform?.rotationDeg);
-  const rotatedQuarterTurn = rotationDeg === 90 || rotationDeg === 270;
-  const rotatedWidth =
-    size && size.height > 0 && size.width > 0 && rotatedQuarterTurn
-      ? `${(Math.min(size.width / size.height, size.height / size.width) * 100).toFixed(4)}%`
-      : "100%";
-
-  return {
-    ...getImageTransformStyle(transform, { center: true }),
-    ...(rotatedQuarterTurn ? { width: rotatedWidth } : {}),
-  };
-}
-
-function getPreviewKey(item: FileDropPreview, index: number): string {
-  return item.id ?? `${item.src}:${index}`;
-}
-
-function FileDropPlusGlyph({ className }: { className?: string }): React.JSX.Element {
-  return (
-    <svg
-      aria-hidden="true"
-      className={cn("flex-none", className)}
-      fill="none"
-      viewBox="0 0 14 14"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M7 2.5V11.5" stroke="currentColor" strokeLinecap="round" strokeWidth="1" />
-      <path d="M2.5 7H11.5" stroke="currentColor" strokeLinecap="round" strokeWidth="1" />
-    </svg>
-  );
-}
-
-const imageTransformActions = [
-  { ariaLabel: "90° Right", icon: "rotate-cw", label: "90°", value: "rotate-right" },
-  {
-    ariaLabel: "Flip horizontal",
-    icon: "flip-horizontal",
-    label: "Flip H",
-    value: "flip-horizontal",
-  },
-  {
-    ariaLabel: "Flip vertical",
-    icon: "flip-vertical",
-    label: "Flip V",
-    value: "flip-vertical",
-  },
-] satisfies readonly ActionControlOption[];
-
-type SortablePreviewTileProps = {
-  index: number;
-  isSortable: boolean;
-  item: FileDropPreview;
-  itemKey: string;
-  onPreviewRemove?: (preview: FileDropPreview, index: number) => void;
-  onPreviewSelect?: (preview: FileDropPreview) => void;
-  selected?: boolean;
-};
-
-function SortablePreviewTile({
-  index,
-  isSortable,
-  item,
-  itemKey,
-  onPreviewRemove,
-  onPreviewSelect,
-  selected = false,
-}: SortablePreviewTileProps): React.JSX.Element {
-  const { attributes, isDragging, listeners, setNodeRef, transform, transition } =
-    useSortable({
-      disabled: !isSortable,
-      id: itemKey,
-    });
-  const sortableTransform = transform
-    ? {
-        ...transform,
-        scaleX: isDragging ? 1.035 : transform.scaleX,
-        scaleY: isDragging ? 1.035 : transform.scaleY,
-      }
-    : null;
-  const style: React.CSSProperties = {
-    transform: sortableTransform ? CSS.Transform.toString(sortableTransform) : undefined,
-    transition,
-  };
-
-  return (
-    <div
-      className={cn(
-        "relative aspect-square min-w-0 overflow-hidden rounded-[calc(var(--radius-lg)-4px)] bg-[color:color-mix(in_oklab,var(--foreground)_6%,transparent)] transition-[transform,box-shadow,opacity,border-color] duration-180 ease-out motion-reduce:transition-none",
-        isSortable &&
-          "cursor-grab touch-none select-none will-change-transform hover:shadow-[0_8px_18px_color-mix(in_oklab,var(--background)_30%,transparent)]",
-        selected &&
-          "ring-2 ring-[color:color-mix(in_oklab,var(--link)_72%,transparent)] ring-offset-2 ring-offset-[color:var(--background)]",
-        isDragging &&
-          "z-10 cursor-grabbing opacity-90 shadow-[0_12px_24px_color-mix(in_oklab,var(--background)_55%,transparent)]",
-      )}
-      data-file-upload-preview-key={itemKey}
-      data-preview-dragging={isDragging ? "true" : undefined}
-      data-selected={selected ? "true" : undefined}
-      data-slot="file-upload-preview-item"
-      onClick={(event) => {
-        event.stopPropagation();
-        onPreviewSelect?.(item);
-      }}
-      ref={setNodeRef}
-      style={style}
-      {...(isSortable ? attributes : {})}
-      {...(isSortable ? listeners : {})}
-    >
-      <img
-        alt={item.alt ?? ""}
-        className="size-full object-cover"
-        draggable={false}
-        height={item.size?.height}
-        src={item.src}
-        style={getImageTransformStyle(item.transform)}
-        width={item.size?.width}
-      />
-      {onPreviewRemove ? (
-        <Button
-          aria-label={`Remove ${item.alt ?? "image"}`}
-          className="absolute top-0.5 right-0.5"
-          onClick={(event) => {
-            event.stopPropagation();
-            onPreviewRemove(item, index);
-          }}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-          }}
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-        >
-          <XIcon className="drop-shadow-[0_2px_1px_color-mix(in_oklab,var(--background)_80%,transparent)]" />
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
-type SortableFileRowProps = {
-  index: number;
-  isSortable: boolean;
-  item: FileDropPreview;
-  itemKey: string;
-  onPreviewRemove?: (preview: FileDropPreview, index: number) => void;
-};
-
-function SortableFileRow({
-  index,
-  isSortable,
-  item,
-  itemKey,
-  onPreviewRemove,
-}: SortableFileRowProps): React.JSX.Element {
-  const { attributes, isDragging, listeners, setNodeRef, transform, transition } =
-    useSortable({
-      disabled: !isSortable,
-      id: itemKey,
-    });
-  const style: React.CSSProperties = {
-    transform: transform ? CSS.Transform.toString(transform) : undefined,
-    transition,
-  };
-  const fileName = item.fileName ?? item.alt ?? "Untitled file";
-
-  return (
-    <div
-      className={cn(
-        "mx-1 flex h-8 min-w-0 items-center gap-2 pr-1 pl-[7px] text-left text-sm text-[color:color-mix(in_oklab,var(--foreground)_86%,transparent)] transition-[background-color,opacity,transform] duration-150 ease-out hover:bg-[color:color-mix(in_oklab,var(--foreground)_3%,transparent)] motion-reduce:transition-none",
-        isSortable && "cursor-grab touch-none select-none",
-        isDragging &&
-          "z-10 cursor-grabbing bg-[color:color-mix(in_oklab,var(--foreground)_5%,transparent)] opacity-90",
-      )}
-      data-file-upload-preview-key={itemKey}
-      data-preview-dragging={isDragging ? "true" : undefined}
-      data-slot="file-upload-file-item"
-      onClick={(event) => {
-        event.stopPropagation();
-      }}
-      ref={setNodeRef}
-      style={style}
-      {...(isSortable ? attributes : {})}
-      {...(isSortable ? listeners : {})}
-    >
-      <PaperclipIcon
-        aria-hidden="true"
-        className="size-4 flex-none text-[color:color-mix(in_oklab,var(--foreground)_48%,transparent)]"
-        weight="regular"
-      />
-      <span
-        className="min-w-0 flex-1 overflow-hidden text-xs whitespace-nowrap [-webkit-mask-image:linear-gradient(to_right,black_calc(100%-20px),transparent)] [mask-image:linear-gradient(to_right,black_calc(100%-20px),transparent)]"
-        title={fileName}
-      >
-        {fileName}
-      </span>
-      {onPreviewRemove ? (
-        <Button
-          aria-label={`Remove ${fileName}`}
-          className="flex-none"
-          onClick={(event) => {
-            event.stopPropagation();
-            onPreviewRemove(item, index);
-          }}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-          }}
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-        >
-          <XIcon className="drop-shadow-[0_2px_1px_color-mix(in_oklab,var(--background)_80%,transparent)]" />
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
-export function FileDropControl({
+function FileDropControlBase<
+  AssetKind extends string = FileDropAssetKind,
+  Feedback = unknown,
+  Status = unknown,
+>({
   accept,
   assetKind = "image",
+  collectionActions,
+  collectionSlot = false,
   multiple = false,
+  onAction,
   onClear,
   onFileSelect,
   onFilesSelect,
+  onFolderSelect,
+  onItemRemove,
+  onItemSelect,
+  onItemsReorder,
   onPreviewRemove,
   onPreviewReorder,
   onPreviewTransform,
+  presentation: providedPresentation,
   preview,
   previews,
-}: FileDropControlProps): React.JSX.Element {
+}: FileDropControlProps<AssetKind, Feedback, Status> & {
+  collectionSlot?: boolean;
+}): React.JSX.Element {
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const folderInputRef = React.useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = React.useState(false);
-  const [selectedPreviewKey, setSelectedPreviewKey] = React.useState<string | null>(null);
+  const [selectedItemKey, setSelectedItemKey] = React.useState<string | null>(
+    null,
+  );
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -418,53 +84,106 @@ export function FileDropControl({
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-  const previewItems = previews ?? (preview ? [preview] : []);
-  const hasPreview = previewItems.some((item) => Boolean(item.src));
-  const shouldRenderPreviewGrid = multiple && previewItems.length > 1;
-  const shouldRenderFileList = assetKind === "file" && hasPreview;
-  const previewEntries = previewItems.map((item, index) => ({
-    item,
-    key: getPreviewKey(item, index),
-  }));
-  const previewKeys = previewEntries.map((entry) => entry.key);
-  const requiresImageSelection = assetKind === "image" && multiple && previewEntries.length > 1;
-  const selectedPreviewEntry = requiresImageSelection
-    ? previewEntries.find((entry) => entry.key === selectedPreviewKey)
-    : previewEntries[0];
-  const shouldRenderImageActions =
-    assetKind === "image" &&
-    hasPreview &&
+  const legacy = createLegacyFileDropPresentation({
+    accept,
+    assetKind,
+    multiple,
+    preview,
+    previews,
+  });
+  const usesLegacyPresentation = providedPresentation === undefined;
+  const presentation = (providedPresentation ??
+    legacy.presentation) as FileDropPresentation<string, unknown, unknown>;
+  const isImagePresenter =
+    presentation.presenter === "image-grid" ||
+    presentation.presenter === "single-image";
+  const requiresPreviewSource = usesLegacyPresentation || isImagePresenter;
+  const {
+    entries: itemEntries,
+    hasContent,
+    isListPresenter,
+    itemKeys,
+    items: renderableItems,
+  } = createFileDropItemView(presentation, requiresPreviewSource);
+  const isAttachedCollectionSlot = collectionSlot && hasContent;
+  const showsListCardinalityActions = !collectionSlot;
+  const legacyPreviewByKey = new Map<string, FileDropPreview>(
+    legacy.previews.map((item, index) => [getPreviewKey(item, index), item]),
+  );
+  const canSelectImageItem = usesLegacyPresentation
+    ? Boolean(onPreviewTransform)
+    : Boolean(onItemSelect);
+  const requiresItemSelection =
+    presentation.presenter === "image-grid" &&
+    itemEntries.length > 1 &&
+    canSelectImageItem;
+  const selectedItemEntry = requiresItemSelection
+    ? itemEntries.find((entry) => entry.key === selectedItemKey)
+    : itemEntries[0];
+  const shouldRenderLegacyImageActions =
+    usesLegacyPresentation &&
+    (presentation.presenter === "image-grid" ||
+      presentation.presenter === "single-image") &&
+    hasContent &&
     Boolean(onPreviewTransform) &&
-    Boolean(selectedPreviewEntry) &&
-    (!requiresImageSelection || selectedPreviewKey !== null);
+    Boolean(selectedItemEntry) &&
+    (!requiresItemSelection || selectedItemKey !== null);
+  const secondaryActions = shouldRenderLegacyImageActions
+    ? imageTransformActions
+    : presentation.secondaryActions;
+  const actionModel = createFileDropActionModel(
+    secondaryActions,
+    Boolean(shouldRenderLegacyImageActions || onAction),
+  );
+  const hasReorderHandler = usesLegacyPresentation
+    ? Boolean(onPreviewReorder)
+    : Boolean(onItemsReorder);
+  const canRemoveCollectionItem = usesLegacyPresentation
+    ? Boolean(onPreviewRemove)
+    : Boolean(onItemRemove || (onClear && renderableItems.length === 1));
+  const dropTargetHandlers = createFileDropTargetHandlers({
+    enabled: !isAttachedCollectionSlot,
+    onDragOverChange: setDragOver,
+    onFiles: handleFiles,
+  });
+
+  if (
+    !usesLegacyPresentation &&
+    onItemsReorder &&
+    presentation.presenter !== "file-list" &&
+    presentation.presenter !== "image-grid"
+  ) {
+    throw new Error(
+      `FileDrop presenter "${presentation.presenter}" does not support item reordering.`,
+    );
+  }
 
   React.useEffect(() => {
-    if (!selectedPreviewKey) {
+    if (!selectedItemKey) {
       return;
     }
-
-    if (!requiresImageSelection || !previewKeys.includes(selectedPreviewKey)) {
-      setSelectedPreviewKey(null);
+    if (!requiresItemSelection || !itemKeys.includes(selectedItemKey)) {
+      setSelectedItemKey(null);
     }
-  }, [previewKeys, requiresImageSelection, selectedPreviewKey]);
+  }, [itemKeys, requiresItemSelection, selectedItemKey]);
 
   function handleFiles(fileList: FileList | readonly File[] | undefined): void {
     const files = Array.from(fileList ?? []);
-
     if (files.length === 0) {
       return;
     }
-
-    if (multiple) {
+    if (!usesLegacyPresentation) {
+      onFilesSelect?.(files);
+      return;
+    }
+    if (presentation.allowsFileBatch) {
       if (onFilesSelect) {
         onFilesSelect(files);
         return;
       }
-
       files.forEach((file) => onFileSelect?.(file));
       return;
     }
-
     onFileSelect?.(files[0]);
   }
 
@@ -472,271 +191,271 @@ export function FileDropControl({
     inputRef.current?.click();
   }
 
-  function handleDropTargetClick(event: React.MouseEvent<HTMLDivElement>): void {
-    event.preventDefault();
-    openFileDialog();
+  function openFolderDialog(): void {
+    folderInputRef.current?.click();
   }
 
-  function handleDropTargetKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
-    if (event.key !== "Enter" && event.key !== " ") {
-      return;
-    }
-
-    event.preventDefault();
-    openFileDialog();
-  }
-
-  function handlePreviewDragEnd(event: DragEndEvent): void {
+  function handleItemDragEnd(event: DragEndEvent): void {
     const activeKey = String(event.active.id);
     const overKey = event.over ? String(event.over.id) : null;
-
-    if (!onPreviewReorder || !overKey || activeKey === overKey) {
+    if (!hasReorderHandler || !overKey || activeKey === overKey) {
       return;
     }
-
-    const activeIndex = previewKeys.indexOf(activeKey);
-    const overIndex = previewKeys.indexOf(overKey);
-
-    if (activeIndex < 0 || overIndex < 0 || activeIndex === overIndex) {
+    const orderedPresentationItems = reorderFileDropPresentationItems(
+      presentation.items,
+      itemEntries,
+      activeKey,
+      overKey,
+    );
+    if (!orderedPresentationItems) {
       return;
     }
-
-    onPreviewReorder(
-      arrayMove(previewEntries, activeIndex, overIndex).map((entry) => entry.item),
+    if (usesLegacyPresentation) {
+      const orderedPreviews = orderedPresentationItems.flatMap(
+        (item, index) => {
+          const key = getPresentationItemKey(item, index);
+          const legacyPreview = legacyPreviewByKey.get(key);
+          return legacyPreview ? [legacyPreview] : [];
+        },
+      );
+      if (orderedPreviews.length === legacy.previews.length) {
+        onPreviewReorder?.(orderedPreviews);
+      }
+      return;
+    }
+    onItemsReorder?.(
+      orderedPresentationItems as FileDropPresentationItem<AssetKind>[],
     );
   }
 
-  function runImageTransform(operation: FileDropImageTransformOperation): void {
-    if (!selectedPreviewEntry) {
+  function handleCollectionItemRemove(
+    item: FileDropPresentationItem,
+    index: number,
+  ): void {
+    if (usesLegacyPresentation) {
+      const legacyPreview = legacyPreviewByKey.get(
+        getPresentationItemKey(item, index),
+      );
+      if (legacyPreview) {
+        onPreviewRemove?.(legacyPreview, index);
+      }
       return;
     }
+    if (onItemRemove) {
+      onItemRemove(item as FileDropPresentationItem<AssetKind>, index);
+      return;
+    }
+    if (renderableItems.length === 1) {
+      onClear?.();
+    }
+  }
 
-    onPreviewTransform?.(selectedPreviewEntry.item, operation);
+  function handleSingleItemRemove(): void {
+    const entry = itemEntries[0];
+    if (!usesLegacyPresentation && entry && onItemRemove) {
+      onItemRemove(
+        entry.item as FileDropPresentationItem<AssetKind>,
+        entry.sourceIndex,
+      );
+      return;
+    }
+    onClear?.();
+  }
+
+  function handleSecondaryAction(value: string): void {
+    if (shouldRenderLegacyImageActions) {
+      const legacyPreview = selectedItemEntry
+        ? legacyPreviewByKey.get(selectedItemEntry.key)
+        : undefined;
+      if (legacyPreview) {
+        onPreviewTransform?.(
+          legacyPreview,
+          value as FileDropImageTransformOperation,
+        );
+      }
+      return;
+    }
+    onAction?.(value);
+  }
+
+  if (collectionActions) {
+    return (
+      <FileDropCollectionControl
+        actions={collectionActions}
+        canRemoveAttachedItem={canRemoveCollectionItem}
+        entries={itemEntries}
+        onRemoveAttachedItem={handleCollectionItemRemove}
+        presentation={presentation}
+        renderSlotControl={(slotPresentation) => (
+          <FileDropControlBase
+            collectionSlot
+            onFilesSelect={(files) => onFilesSelect?.(files.slice(0, 1))}
+            presentation={slotPresentation}
+          />
+        )}
+      />
+    );
   }
 
   return (
     <Field className="min-w-0" style={{ gap: "6px" }}>
       <input
-        accept={getFileInputAccept(accept)}
-        aria-hidden="true"
+        accept={getFileInputAccept(presentation.accept)}
+        aria-label={presentation.emptyTitle}
         className="hidden"
+        data-slot="file-upload-input"
+        hidden
         onChange={(event) => {
           handleFiles(event.currentTarget.files ?? undefined);
           event.currentTarget.value = "";
         }}
-        multiple={multiple}
+        multiple={presentation.allowsFileBatch}
         ref={inputRef}
         tabIndex={-1}
         type="file"
       />
+      {presentation.allowsFolderSelection ? (
+        <FileDropFolderInput
+          ariaLabel={`${presentation.emptyTitle} folder`}
+          inputRef={folderInputRef}
+          onFilesSelect={onFolderSelect}
+        />
+      ) : null}
       <div
         aria-label={
-          hasPreview
-            ? multiple
-              ? assetKind === "file"
-                ? "Drop files"
-                : "Drop image files"
-              : assetKind === "file"
-                ? "Replace file"
-                : "Replace image file"
-            : multiple
-              ? assetKind === "file"
-                ? "Browse files"
-                : "Browse image files"
-              : assetKind === "file"
-                ? "Browse file"
-                : "Browse image file"
+          usesLegacyPresentation
+            ? legacy.dropTargetLabel
+            : `${presentation.emptyTitle}. ${presentation.emptyDescription}`
         }
         className={cn(
-          "group/file-upload relative flex min-h-16 w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-[color:color-mix(in_oklab,var(--border)_18%,transparent)] bg-[color:color-mix(in_oklab,var(--foreground)_3%,transparent)] text-center shadow-none transition-[background-color,border-color,box-shadow] duration-150 ease-out data-[drag-over=true]:border-[color:color-mix(in_oklab,var(--link)_28%,transparent)] data-[drag-over=true]:bg-[color:color-mix(in_oklab,var(--link)_13%,transparent)] data-[drag-over=true]:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--background)]",
-          !shouldRenderFileList &&
+          "group/file-upload relative flex min-h-16 w-full flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-[color:color-mix(in_oklab,var(--border)_18%,transparent)] bg-[color:color-mix(in_oklab,var(--foreground)_3%,transparent)] text-center shadow-none transition-[background-color,border-color,box-shadow] duration-150 ease-out data-[drag-over=true]:border-[color:color-mix(in_oklab,var(--link)_28%,transparent)] data-[drag-over=true]:bg-[color:color-mix(in_oklab,var(--link)_13%,transparent)] data-[drag-over=true]:shadow-none",
+          !isListPresenter &&
             "hover:border-[color:color-mix(in_oklab,var(--border)_35%,transparent)] hover:bg-[color:color-mix(in_oklab,var(--foreground)_6%,transparent)]",
-          hasPreview
-            ? shouldRenderFileList
+          hasContent
+            ? isListPresenter
               ? "overflow-hidden p-1.5"
               : "overflow-hidden p-2"
-            : "px-3 py-3",
+            : "p-0",
         )}
         data-drag-over={dragOver}
-        onClick={handleDropTargetClick}
-        onDragEnter={(event) => {
-          event.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={(event) => {
-          if (isDragLeavingCurrentTarget(event)) {
-            setDragOver(false);
-          }
-        }}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragOver(true);
-        }}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragOver(false);
-          handleFiles(event.dataTransfer?.files ?? undefined);
-        }}
-        onKeyDown={handleDropTargetKeyDown}
-        role="button"
-        tabIndex={0}
+        {...sanitizeInteractionHostProps(dropTargetHandlers)}
+        data-slot="file-upload-drop-target"
+        role="group"
       >
-        {shouldRenderFileList ? (
-          <div className="w-full" data-slot="file-upload-file-list">
-            <DndContext
-              collisionDetection={closestCenter}
-              onDragEnd={handlePreviewDragEnd}
-              sensors={sensors}
-            >
-              <SortableContext items={previewKeys} strategy={verticalListSortingStrategy}>
-                {previewEntries.map(({ item, key }, index) => (
-                  <React.Fragment key={key}>
-                    <SortableFileRow
-                      index={index}
-                      isSortable={Boolean(onPreviewReorder) && previewEntries.length > 1}
-                      item={item}
-                      itemKey={key}
-                      onPreviewRemove={onPreviewRemove}
-                    />
-                    <div
-                      aria-hidden="true"
-                      className="mx-1 h-px bg-[color:color-mix(in_oklab,var(--border)_5%,transparent)]"
-                      data-slot="file-upload-file-divider"
-                    />
-                  </React.Fragment>
-                ))}
-              </SortableContext>
-            </DndContext>
-            <button
-              aria-label="Add a new file"
-              className="mx-1 box-border flex h-8 w-[calc(100%-0.5rem)] min-w-0 shrink-0 items-center justify-center gap-1.5 px-1 text-xs text-[color:color-mix(in_oklab,var(--foreground)_65%,transparent)] transition-[background-color,color] duration-150 ease-out hover:bg-[color:color-mix(in_oklab,var(--foreground)_3%,transparent)] hover:text-[color:var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
-              data-slot="file-upload-add-file"
-              onClick={(event) => {
-                event.stopPropagation();
-                openFileDialog();
-              }}
-              type="button"
-            >
-              <FileDropPlusGlyph className="size-3.5" />
-              <span className="font-medium">Add a new file</span>
-            </button>
-          </div>
-        ) : shouldRenderPreviewGrid ? (
-          <div
-            className="grid w-full grid-cols-4 gap-2"
-            data-slot="file-upload-preview-grid"
-          >
-            <DndContext
-              collisionDetection={closestCenter}
-              onDragEnd={handlePreviewDragEnd}
-              sensors={sensors}
-            >
-              <SortableContext items={previewKeys} strategy={rectSortingStrategy}>
-                {previewEntries.map(({ item, key }, index) => (
-                  <SortablePreviewTile
-                    index={index}
-                    isSortable={Boolean(onPreviewReorder)}
-                    item={item}
-                    itemKey={key}
-                    key={key}
-                    onPreviewRemove={onPreviewRemove}
-                    onPreviewSelect={(preview) => {
-                      const nextKey = getPreviewKey(preview, index);
-                      setSelectedPreviewKey((currentKey) =>
-                        currentKey === nextKey ? null : nextKey,
+        {!hasContent ? (
+          <FileDropEmptyState
+            description={presentation.emptyDescription}
+            onActivate={openFileDialog}
+            onFolderActivate={
+              presentation.allowsFolderSelection ? openFolderDialog : undefined
+            }
+            title={presentation.emptyTitle}
+          />
+        ) : presentation.presenter === "file-list" ? (
+          <FileDropFileList
+            isSortable={hasReorderHandler && itemEntries.length > 1}
+            onAddFile={showsListCardinalityActions ? openFileDialog : undefined}
+            onDragEnd={handleItemDragEnd}
+            onItemRemove={
+              showsListCardinalityActions && canRemoveCollectionItem
+                ? handleCollectionItemRemove
+                : undefined
+            }
+            previewEntries={itemEntries}
+            previewKeys={itemKeys}
+            sensors={sensors}
+          />
+        ) : presentation.presenter === "image-grid" ? (
+          <FileDropImageGrid
+            isSortable={hasReorderHandler && itemEntries.length > 1}
+            onAddImages={openFileDialog}
+            onDragEnd={handleItemDragEnd}
+            onItemRemove={
+              canRemoveCollectionItem ? handleCollectionItemRemove : undefined
+            }
+            onPreviewSelect={
+              canSelectImageItem
+                ? (key) => {
+                    const entry = itemEntries.find(
+                      (candidate) => candidate.key === key,
+                    );
+
+                    if (!entry) {
+                      return;
+                    }
+
+                    if (usesLegacyPresentation) {
+                      setSelectedItemKey((currentKey) =>
+                        currentKey === key ? null : key,
                       );
-                    }}
-                    selected={selectedPreviewKey === key}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
-            <button
-              aria-label="Add image files"
-              className="flex aspect-square min-w-0 items-center justify-center rounded-[calc(var(--radius-lg)-4px)] border border-[color:color-mix(in_oklab,var(--border)_5%,transparent)] bg-[color:color-mix(in_oklab,var(--foreground)_4%,transparent)] text-[color:color-mix(in_oklab,var(--foreground)_65%,transparent)] transition-[background-color,border-color,color] duration-150 ease-out hover:border-[color:color-mix(in_oklab,var(--border)_8%,transparent)] hover:bg-[color:color-mix(in_oklab,var(--foreground)_9%,transparent)] hover:text-[color:var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
-              data-slot="file-upload-add-preview"
-              onClick={(event) => {
-                event.stopPropagation();
-                openFileDialog();
-              }}
-              type="button"
-            >
-              <FileDropPlusGlyph className="size-3.5" />
-            </button>
-          </div>
-        ) : hasPreview ? (
-          <>
-            {previewItems[0] ? (
-              <div
-                className="relative w-full max-w-full overflow-hidden rounded-[calc(var(--radius-lg)-4px)]"
-                data-slot="file-upload-preview-frame"
-                style={getPreviewFrameStyle(previewItems[0].size)}
-              >
-                <img
-                  alt={previewItems[0].alt ?? ""}
-                  className={cn(
-                    "absolute top-1/2 left-1/2 block h-auto object-contain",
-                    isPreviewQuarterTurn(previewItems[0].transform)
-                      ? "max-w-none"
-                      : "max-h-full max-w-full",
-                  )}
-                  draggable={false}
-                  height={previewItems[0].size?.height}
-                  src={previewItems[0].src}
-                  style={getPreviewImageStyle(previewItems[0].size, previewItems[0].transform)}
-                  width={previewItems[0].size?.width}
-                />
-              </div>
-            ) : null}
-            {onClear ? (
-              <Button
-                aria-label="Remove image"
-                className="absolute top-3 right-3"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onClear();
-                }}
-                size="icon-sm"
-                type="button"
-                variant="ghost"
-              >
-                <XIcon className="drop-shadow-[0_2px_1px_color-mix(in_oklab,var(--background)_80%,transparent)]" />
-              </Button>
-            ) : null}
-          </>
+                      return;
+                    }
+
+                    setSelectedItemKey(key);
+                    onItemSelect?.(
+                      entry.item as FileDropPresentationItem<AssetKind>,
+                      entry.sourceIndex,
+                    );
+                  }
+                : undefined
+            }
+            previewEntries={itemEntries}
+            previewKeys={itemKeys}
+            selectedPreviewKey={selectedItemKey}
+            sensors={sensors}
+          />
+        ) : presentation.presenter === "model-item" ? (
+          <FileDropFileList
+            isSortable={false}
+            onDragEnd={handleItemDragEnd}
+            onItemActivate={openFileDialog}
+            onItemRemove={
+              canRemoveCollectionItem ? handleCollectionItemRemove : undefined
+            }
+            previewEntries={itemEntries}
+            previewKeys={itemKeys}
+            sensors={sensors}
+          />
         ) : (
-          <>
-            <CloudArrowUpIcon
-              className="size-6 flex-none text-[color:var(--muted-foreground)] transition-colors duration-150 ease-out group-data-[drag-over=true]/file-upload:text-[color:var(--link)]"
-              weight="light"
-            />
-            <p className="m-0 flex max-w-full flex-col text-xs leading-tight text-[color:color-mix(in_oklab,var(--foreground)_60%,transparent)] transition-colors duration-150 ease-out group-hover/file-upload:text-[color:color-mix(in_oklab,var(--foreground)_85%,transparent)] group-data-[drag-over=true]/file-upload:text-[color:var(--link)]">
-              {assetKind === "file" ? (
-                <>
-                  <span>Click to upload a file</span>
-                  <span>or drag it onto the canvas</span>
-                </>
-              ) : (
-                <>
-                  <span>Click to upload an image</span>
-                  <span>or drag it onto the canvas</span>
-                </>
-              )}
-            </p>
-          </>
+          <FileDropSinglePreview
+            item={renderableItems[0]}
+            onActivate={openFileDialog}
+            onRemove={
+              usesLegacyPresentation
+                ? onClear
+                  ? handleSingleItemRemove
+                  : undefined
+                : onItemRemove || onClear
+                  ? handleSingleItemRemove
+                  : undefined
+            }
+          />
         )}
       </div>
-      {shouldRenderImageActions ? (
+      <FileDropPresentationMessages
+        feedback={presentation.feedback}
+        status={presentation.status}
+      />
+      {secondaryActions.length > 0 ? (
         <ActionsControl
-          actions={imageTransformActions}
-          buttonColumns={3}
-          name="Image transforms"
-          onAction={(operation) =>
-            runImageTransform(operation as FileDropImageTransformOperation)
-          }
+          actionStates={actionModel.states}
+          actions={actionModel.options}
+          buttonColumns={isImagePresenter ? 3 : undefined}
+          name={isImagePresenter ? "Image transforms" : "File actions"}
+          onAction={handleSecondaryAction}
           showLabel={false}
         />
       ) : null}
     </Field>
   );
+}
+
+export function FileDropControl<
+  AssetKind extends string = FileDropAssetKind,
+  Feedback = unknown,
+  Status = unknown,
+>(
+  props: FileDropControlProps<AssetKind, Feedback, Status>,
+): React.JSX.Element {
+  return <FileDropControlBase {...props} />;
 }

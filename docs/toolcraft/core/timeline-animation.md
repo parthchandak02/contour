@@ -23,7 +23,8 @@ Use no timeline only when the motion is explicitly autonomous decoration with no
 
 ## Compact And Extended Timeline
 
-- When `panels.timeline` is enabled, runtime Setup appends a `Timeline` switch.
+- Setup places the standard Background switch beside Infinity canvas after the local Save State as Default action when available, then Background color beside the Blanc/Dots workspace selector and finite sizing. Timeline and optional Lock rotation share the final Setup row.
+- Timeline and Infinity canvas are self-explanatory runtime mode switches and do not render help icons.
 - Off shows compact Play-only transport.
 - On shows the extended timeline with scrubber, duration, loop, and keyframe UI.
 - The switch is runtime UI state only. It does not pause playback, change keyframes, alter export, write product values, or reset with `Reset controls`.
@@ -35,8 +36,9 @@ Use no timeline only when the motion is explicitly autonomous decoration with no
 - Direction does not reverse.
 - Mirror, yoyo, ping-pong, or back-and-forth behavior requires explicit user intent.
 - Use `getToolcraftTimelineLoopTime` or `getToolcraftTimelineLoopProgress` in playback renderers instead of local wall-clock or fixed-duration phase math.
-- When the loop period is known or product-derived, set `panels.timeline.defaultDurationSeconds` to that period and record the evidence in animation or reference timeline metadata.
+- When the loop period is known or product-derived, pass `defaultDurationSeconds` to `timelineModule({ mode, defaultDurationSeconds })` and record the evidence in animation or reference timeline metadata.
 - Runtime/template fallback `8s` is not evidence for loop duration.
+- Playback acceptance with loop coverage declares typed `timelineLoopProof`: forward-only direction, reverse playback forbidden, first/last frame seam match, and reproof after a duration edit. This declaration never replaces browser sampling of the real renderer.
 
 ## Duration Changes
 
@@ -52,6 +54,8 @@ Use no timeline only when the motion is explicitly autonomous decoration with no
 - Do not parse timeline `valueLabel` strings.
 - Do not read raw `state.values` for keyframed targets when evaluated keyframe helpers are available.
 - When a keyframe point is selected and a parameter is edited, update the selected point instead of creating a new point unless the user explicitly adds one.
+- Compound `collectionActions.itemControls` opt into nested keyframes only with `keyframeable: true`. Each selected item/field gets an opaque runtime address and atomic base-value/keyframe history; product code consumes evaluated parent collection arrays and never parses or constructs that address.
+- Removing the final item prunes only its suffix tracks. Full collection replacement, reset, or settings import prunes every nested track for that collection; persistence retains only schema-valid in-range tracks with matching snapshot provenance.
 
 ## Viewport Interaction Performance
 
@@ -61,7 +65,7 @@ Use no timeline only when the motion is explicitly autonomous decoration with no
 
 ## Video Export Timing
 
-- Video export uses runtime timeline time.
-- Offline rendered-frame video export must encode frame timestamps from timeline time.
-- Real-time `canvas.captureStream()` plus `MediaRecorder` is not enough when renderer work can be slower than playback.
-- Browser acceptance verifies exported video metadata duration against edited timeline duration.
+- Runtime video export creates a fixed 30 FPS schedule from runtime timeline duration and evaluates one immutable frame state at every scheduled timeline time.
+- The timestamped Mediabunny backend encodes each completed frame with its explicit schedule timestamp and duration; render wall-clock cost does not affect artifact cadence.
+- Product code must not use `canvas.captureStream()`, `MediaRecorder`, `VideoEncoder`, or its own encoder/download fallback.
+- Protected browser acceptance proves edited timeline duration, actual encoded packet count/timings, and distinct decoded product frames.

@@ -1,5 +1,12 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { attachToolcraftBrowserRuntimeEvidence } from "./browser-runtime-evidence";
+import {
+  assertToolcraftProducedArtifact,
+  getToolcraftSemanticArtifactSignature,
+  type ToolcraftExportArtifactInspection,
+} from "./export-artifact-helpers";
+
 export function getCanvasHandle(page: Page, testId: string): Locator {
   return page.locator(`[data-toolcraft-canvas-handle][data-testid="${testId}"]`);
 }
@@ -8,6 +15,7 @@ export async function dragCanvasHandle(
   page: Page,
   testId: string,
   delta: { x: number; y: number },
+  options: { pathId?: string; requirementId?: string; target?: string } = {},
 ): Promise<void> {
   const handle = getCanvasHandle(page, testId);
   await expect(handle, `Canvas handle "${testId}" should be visible`).toBeVisible();
@@ -24,6 +32,20 @@ export async function dragCanvasHandle(
   await page.mouse.down();
   await page.mouse.move(startX + delta.x, startY + delta.y, { steps: 8 });
   await page.mouse.up();
+  if (options.pathId) {
+    await attachToolcraftBrowserRuntimeEvidence({
+      evidenceType: "performance-control-drag",
+      requirementId: options.pathId,
+      target: options.target,
+    });
+  }
+  if (options.requirementId) {
+    await attachToolcraftBrowserRuntimeEvidence({
+      evidenceType: "canvas-handle-interaction",
+      requirementId: options.requirementId,
+      target: options.target,
+    });
+  }
 }
 
 const defaultForbiddenCanvasCopyPatterns = [
@@ -129,14 +151,66 @@ export async function expectNoForbiddenCanvasUi(
   ).toEqual([]);
 }
 
-export async function expectExportExcludesCanvasHandles(
+export async function expectExportExcludesCanvasHandles<TArtifact>(
   page: Page,
-  exportAction: () => Promise<unknown>,
+  exportAction: () => Promise<TArtifact>,
+  inspectArtifact: (
+    artifact: TArtifact,
+  ) => Promise<ToolcraftExportArtifactInspection> | ToolcraftExportArtifactInspection,
+  options: { requirementId?: string; target?: string } = {},
 ): Promise<void> {
-  await exportAction();
-
   const handles = page.locator("[data-toolcraft-canvas-handle]");
   const count = await handles.count();
+  expect(count, "Canvas export-clean verification requires at least one handle.").toBeGreaterThan(0);
+
+  const requirementId = options.requirementId ?? "canvas-export-clean";
+  const baselineArtifact = await exportAction();
+  assertToolcraftProducedArtifact(baselineArtifact, requirementId);
+  const baselineSignature = getToolcraftSemanticArtifactSignature(
+    await inspectArtifact(baselineArtifact),
+    requirementId,
+  );
+  const originalStyles = await handles.evaluateAll((elements) =>
+    elements.map((element) => element.getAttribute("style")),
+  );
+
+  let markedSignature: string;
+  try {
+    await handles.evaluateAll((elements) => {
+      for (const element of elements) {
+        const handle = element as HTMLElement;
+        handle.style.setProperty("background", "rgb(1, 254, 3)", "important");
+        handle.style.setProperty(
+          "box-shadow",
+          "0 0 0 24px rgb(254, 1, 253)",
+          "important",
+        );
+        handle.style.setProperty("opacity", "1", "important");
+      }
+    });
+    const markedArtifact = await exportAction();
+    assertToolcraftProducedArtifact(markedArtifact, requirementId);
+    markedSignature = getToolcraftSemanticArtifactSignature(
+      await inspectArtifact(markedArtifact),
+      requirementId,
+    );
+  } finally {
+    await handles.evaluateAll((elements, savedStyles) => {
+      elements.forEach((element, index) => {
+        const savedStyle = savedStyles[index];
+        if (savedStyle === null || savedStyle === undefined) {
+          element.removeAttribute("style");
+        } else {
+          element.setAttribute("style", savedStyle);
+        }
+      });
+    }, originalStyles);
+  }
+
+  expect(
+    markedSignature,
+    "Exported output changed when editor handles were visually marked, so handles are leaking into the artifact.",
+  ).toEqual(baselineSignature);
 
   for (let index = 0; index < count; index += 1) {
     const handle = handles.nth(index);
@@ -144,6 +218,14 @@ export async function expectExportExcludesCanvasHandles(
       handle,
       "Canvas handles should remain editor overlays after export/copy and must not be duplicated into product output.",
     ).toHaveAttribute("data-toolcraft-canvas-handle");
+  }
+
+  if (options.requirementId) {
+    await attachToolcraftBrowserRuntimeEvidence({
+      evidenceType: "canvas-export-clean",
+      requirementId: options.requirementId,
+      target: options.target,
+    });
   }
 }
 

@@ -1,17 +1,14 @@
-import type { ResolvedToolcraftAppSchema } from "../schema/types";
-import type {
-  ToolcraftMediaAsset,
-  ToolcraftTimelineState,
-} from "./types";
+import type { ResolvedToolcraftAppSchema } from "../schema/resolved-app-schema";
+import type { ToolcraftMediaAsset, ToolcraftTimelineState } from "./types";
 
 export function doesTimelineRequireMedia(
   schema: ResolvedToolcraftAppSchema,
 ): boolean {
   return Boolean(
     schema.panels.timeline?.enabled &&
-      schema.canvas.enabled &&
-      schema.canvas.upload &&
-      schema.canvas.sizing.mode === "intrinsic-media",
+    schema.canvas.enabled &&
+    schema.canvas.upload &&
+    schema.canvas.sizing.mode === "intrinsic-media",
   );
 }
 

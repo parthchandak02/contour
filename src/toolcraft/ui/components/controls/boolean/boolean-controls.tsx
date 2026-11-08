@@ -7,6 +7,7 @@ import { Checkbox, Field, Switch } from "../../primitives";
 
 type BooleanControlBaseProps = {
   checked: boolean;
+  disabled?: boolean;
   name: string;
   onCheckedChange?: (checked: boolean) => void;
   showLabel?: boolean;
@@ -39,6 +40,7 @@ function useBooleanControlValue({
 
 export function SwitchControl({
   checked,
+  disabled = false,
   name,
   onCheckedChange,
   showLabel = true,
@@ -48,8 +50,9 @@ export function SwitchControl({
   return (
     <Field className="h-fit justify-start py-1" orientation="horizontal" style={{ gap: 8 }}>
       <Switch
-        aria-label={showLabel ? undefined : name}
+        aria-label={name}
         checked={currentChecked}
+        disabled={disabled}
         onCheckedChange={updateChecked}
         size="default"
       />
@@ -60,6 +63,7 @@ export function SwitchControl({
 
 export function CheckboxControl({
   checked,
+  disabled = false,
   name,
   onCheckedChange,
   showLabel = true,
@@ -71,6 +75,7 @@ export function CheckboxControl({
       <Checkbox
         aria-label={showLabel ? undefined : name}
         checked={currentChecked}
+        disabled={disabled}
         onCheckedChange={(nextChecked) => updateChecked(nextChecked === true)}
       />
       {showLabel ? <ControlFieldLabel textClassName="opacity-90">{name}</ControlFieldLabel> : null}

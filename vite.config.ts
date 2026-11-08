@@ -6,8 +6,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 
+import { toolcraftAppDefaultsPlugin } from "./scripts/toolcraft-app-defaults-plugin.mjs";
+import { loadToolcraftRendererVitePlugins } from "./scripts/toolcraft-renderer-vite-plugins.mjs";
+
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
 const toolcraftServerIdentityPath = "/.toolcraft/server-identity.json";
+const testDependencyRoot = process.env.TOOLCRAFT_TEST_DEPENDENCY_ROOT;
 
 function readHtmlAppTitle(source: string): string | null {
   const appTitleMeta = source
@@ -59,11 +63,27 @@ function toolcraftServerIdentityPlugin(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [toolcraftServerIdentityPlugin(), tailwindcss(), react()],
+export default defineConfig(async () => ({
+  optimizeDeps: {
+    entries: ["index.html"],
+  },
+  plugins: [
+    ...(await loadToolcraftRendererVitePlugins({ appRoot: rootDir })),
+    toolcraftServerIdentityPlugin(),
+    toolcraftAppDefaultsPlugin({ appRoot: rootDir }),
+    tailwindcss(),
+    react(),
+  ],
+  server: testDependencyRoot
+    ? {
+        fs: {
+          allow: [rootDir, path.resolve(testDependencyRoot)],
+        },
+      }
+    : undefined,
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
-});
+}));

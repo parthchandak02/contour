@@ -13,9 +13,14 @@ import {
 import { PrimitiveArrowIcon } from "./primitive-arrow-icon";
 import { ScrollFade } from "./scroll-fade";
 import { pressedSelectedItemClassName } from "./selection-state";
+import { useOverflowTitle } from "./use-overflow-title";
 import { CheckIcon } from "@phosphor-icons/react";
 
-const Select = SelectPrimitive.Root;
+function Select<Value, Multiple extends boolean | undefined = false>(
+  props: SelectPrimitive.Root.Props<Value, Multiple>,
+) {
+  return <SelectPrimitive.Root {...props} />;
+}
 
 const dropdownHoverBorderClassName =
   "[&:not(:focus):not([aria-expanded=true]):not([data-open]):not([data-popup-open]):not([data-state=open]):hover]:!border-[color:color-mix(in_oklab,var(--border)_20%,transparent)]";
@@ -227,45 +232,6 @@ function getTextTitle(
   }
 
   return undefined;
-}
-
-function useOverflowTitle(
-  viewportRef: React.RefObject<HTMLDivElement | null>,
-  textTitle: string | undefined,
-): string | undefined {
-  const [overflowing, setOverflowing] = React.useState(false);
-
-  React.useEffect(() => {
-    const viewport = viewportRef.current;
-
-    if (!viewport || !textTitle) {
-      setOverflowing(false);
-      return undefined;
-    }
-
-    const updateOverflow = () => {
-      setOverflowing(viewport.scrollWidth > viewport.clientWidth + 1);
-    };
-
-    updateOverflow();
-
-    if (typeof ResizeObserver === "undefined") {
-      return undefined;
-    }
-
-    const observer = new ResizeObserver(updateOverflow);
-    observer.observe(viewport);
-
-    if (viewport.firstElementChild instanceof HTMLElement) {
-      observer.observe(viewport.firstElementChild);
-    }
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [textTitle, viewportRef]);
-
-  return overflowing ? textTitle : undefined;
 }
 
 function SelectItemTextContent({

@@ -5,6 +5,7 @@ export type {
   ActionControlIconName,
   ActionControlObjectOption,
   ActionControlOption,
+  ActionsControlItemState,
   ActionsControlProps as ActionsProps,
   ActionsControlProps,
 } from "./actions";
@@ -88,10 +89,12 @@ export type {
 export {
   CollectionActionsControl,
   CollectionActionsControl as CollectionActions,
+  CollectionItemGroups,
 } from "./collection-actions";
 export type {
   CollectionActionsControlProps,
   CollectionActionsControlProps as CollectionActionsProps,
+  CollectionItemGroupsProps,
 } from "./collection-actions";
 export { createControlHistoryGroupId } from "./control-types";
 export type {
@@ -117,10 +120,15 @@ export type {
 export { FileDropControl, FileDropControl as FileDrop } from "./file-drop";
 export type {
   FileDropAssetKind,
+  FileDropCollectionActions,
   FileDropControlProps,
   FileDropControlProps as FileDropProps,
+  FileDropImageSize,
   FileDropImageTransform,
   FileDropImageTransformOperation,
+  FileDropPresentation,
+  FileDropPresentationAction,
+  FileDropPresentationItem,
   FileDropPreview,
 } from "./file-drop";
 export {
@@ -184,6 +192,8 @@ export type {
   SelectControlProps,
   SelectControlProps as SelectProps,
 } from "./select";
+export { TabsControl, doesTabsControlOverflow } from "./tabs";
+export type { TabsControlProps } from "./tabs";
 export { SliderControl, SliderControl as Slider } from "./slider";
 export type {
   SliderControlProps,

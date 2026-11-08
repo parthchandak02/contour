@@ -13,6 +13,7 @@ import {
 export type TextInputControlInput = {
   commitOnBlur?: boolean;
   defaultValue?: string;
+  disabled?: boolean;
   name: string;
   onValueChange?: ControlValueChangeHandler<string>;
   showLabel?: boolean;
@@ -29,9 +30,7 @@ type TextInputControlGroupProps = {
   inputsPerRow?: number;
 };
 
-export type TextInputControlProps =
-  | TextInputControlSingleProps
-  | TextInputControlGroupProps;
+export type TextInputControlProps = TextInputControlSingleProps | TextInputControlGroupProps;
 
 function isTextInputControlGroupProps(
   props: TextInputControlProps,
@@ -50,12 +49,15 @@ function getInputsPerRow(inputsPerRow: number | undefined): number {
 function TextInputControlField({
   commitOnBlur = false,
   defaultValue,
+  disabled = false,
   name,
   onValueChange,
   showLabel = true,
   value,
 }: TextInputControlInput): React.JSX.Element {
+  const inputId = React.useId();
   const [currentValue, setCurrentValue] = React.useState(value);
+  const [commitRevision, finishCommit] = React.useReducer((revision) => revision + 1, 0);
   const valueRef = React.useRef(value);
   const defaultValueRef = React.useRef(defaultValue ?? value);
   const liveHistoryGroupRef = React.useRef<string | null>(null);
@@ -63,7 +65,7 @@ function TextInputControlField({
   React.useEffect(() => {
     valueRef.current = value;
     setCurrentValue(value);
-  }, [value]);
+  }, [value, disabled, commitRevision]);
 
   React.useEffect(() => {
     defaultValueRef.current = defaultValue ?? value;
@@ -83,6 +85,7 @@ function TextInputControlField({
   }
 
   function updateValue(nextValue: string): void {
+    if (disabled) return;
     setCurrentValue(nextValue);
 
     if (!commitOnBlur) {
@@ -91,20 +94,24 @@ function TextInputControlField({
   }
 
   function commitValue(nextValue = currentValue): void {
-    const committedValue =
-      nextValue.trim() === "" ? defaultValueRef.current : nextValue;
+    if (disabled) return;
+    const committedValue = nextValue.trim() === "" ? defaultValueRef.current : nextValue;
 
     setCurrentValue(committedValue);
 
     if (committedValue !== valueRef.current) {
       onValueChange?.(committedValue);
     }
+    // Reconcile even when validation/clamping keeps the parent value unchanged.
+    finishCommit();
   }
 
   return (
     <Field className="min-w-0 gap-2">
-      {showLabel ? <ControlFieldLabel>{name}</ControlFieldLabel> : null}
+      {showLabel ? <ControlFieldLabel htmlFor={inputId}>{name}</ControlFieldLabel> : null}
       <Input
+        id={inputId}
+        disabled={disabled}
         aria-label={showLabel ? undefined : name}
         className="font-mono"
         onBlur={commitOnBlur ? () => commitValue() : finishLiveHistoryGroup}
@@ -133,9 +140,7 @@ function TextInputControlField({
   );
 }
 
-export function TextInputControl(
-  props: TextInputControlProps,
-): React.JSX.Element {
+export function TextInputControl(props: TextInputControlProps): React.JSX.Element {
   if (isTextInputControlGroupProps(props)) {
     const inputsPerRow = getInputsPerRow(props.inputsPerRow);
 
@@ -148,10 +153,7 @@ export function TextInputControl(
         }}
       >
         {props.inputs.map((input, index) => (
-          <TextInputControlField
-            key={`${input.name}-${index}`}
-            {...input}
-          />
+          <TextInputControlField key={`${input.name}-${index}`} {...input} />
         ))}
       </div>
     );

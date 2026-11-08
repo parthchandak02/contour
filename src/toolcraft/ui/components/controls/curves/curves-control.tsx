@@ -11,6 +11,7 @@ import {
   type CurvePoint,
 } from "../control-types";
 import { ControlFieldLabel } from "../../control-layout";
+import { subscribeBrowserWindowEvent } from "../../primitives/browser-transport";
 import { ChannelTabs, CurveGraph, singleCurveChannels } from "./curve-graph";
 import {
   type CurveInterpolation,
@@ -249,11 +250,7 @@ function useClearCurveSelectionOnOutsidePointerDown({
       }
     }
 
-    window.addEventListener("pointerdown", handlePointerDown);
-
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-    };
+    return subscribeBrowserWindowEvent("pointerdown", handlePointerDown);
   }, [activePoints, graphRef, selectedPointIndex, updateCurve]);
 }
 
@@ -310,14 +307,17 @@ function useCurveDragging({
       stopDragging();
     }
 
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handleStopDragging);
-    window.addEventListener("pointercancel", handleStopDragging);
+    const unsubscribeMove = subscribeBrowserWindowEvent("pointermove", handlePointerMove);
+    const unsubscribeUp = subscribeBrowserWindowEvent("pointerup", handleStopDragging);
+    const unsubscribeCancel = subscribeBrowserWindowEvent(
+      "pointercancel",
+      handleStopDragging,
+    );
 
     return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handleStopDragging);
-      window.removeEventListener("pointercancel", handleStopDragging);
+      unsubscribeMove();
+      unsubscribeUp();
+      unsubscribeCancel();
     };
   });
 }
@@ -375,11 +375,12 @@ export function CurvesControl(props: CurvesControlProps): React.JSX.Element {
     points,
     selectedPointIndex,
   });
+  const accessibleName = name || defaultName;
 
   return (
-    <div className="flex min-w-0 flex-col gap-3" aria-label={name}>
+    <div className="flex min-w-0 flex-col gap-3" aria-label={accessibleName} data-slot="curves-control">
       {singleCurve ? (
-        <ControlFieldLabel>{name}</ControlFieldLabel>
+        name ? <ControlFieldLabel>{name}</ControlFieldLabel> : null
       ) : (
         <div className="flex min-w-0 flex-col gap-2">
           <ChannelTabs
@@ -395,7 +396,7 @@ export function CurvesControl(props: CurvesControlProps): React.JSX.Element {
       <CurveGraph
         activeChannel={activeChannel}
         activePoints={editor.activePoints}
-        ariaLabel={singleCurve ? `${name} curve editor` : "Color curves editor"}
+        ariaLabel={singleCurve ? `${accessibleName} curve editor` : "Color curves editor"}
         channels={singleCurve ? singleCurveChannels : undefined}
         draggingPointIndex={editor.draggingPointIndex}
         graphRef={editor.graphRef}
